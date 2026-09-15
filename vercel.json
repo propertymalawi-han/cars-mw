@@ -1,8 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "installCommand": "npm install",
-  "buildCommand": "prisma generate && next build",
   "env": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://mxufzhxqxchufhyzsimt.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14dWZ6aHhxeGNodWZoeXpzaW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0Nzg3NjYsImV4cCI6MjEwNTA1NDc2Nn0.HDVDaIjK2AdijcCYsrAf1F92ukvWAUkJQs7bt5XLtIE"
