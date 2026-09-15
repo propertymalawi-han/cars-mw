@@ -55,6 +55,7 @@ function asBodyType(value?: string): BodyType | undefined {
 
 function throwIfError(message: string, error: { message: string } | null) {
   if (error) {
+    console.error(`${message}: ${error.message}`);
     throw new Error(`${message}: ${error.message}`);
   }
 }
