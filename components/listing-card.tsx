@@ -34,13 +34,13 @@ export function ListingCard({
       )}
     >
       <Link href={`/listings/${listing.id}`} className="flex h-full flex-col">
-        <div className="relative flex aspect-[16/10] items-center justify-center border-b bg-muted">
+        <div className="relative flex aspect-[16/9] items-center justify-center border-b bg-muted sm:aspect-[16/10]">
           <Image
             src={listing.images[0] ?? ""}
             alt={listing.title}
             fill
             className="object-cover"
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            sizes="(min-width: 860px) 33vw, (min-width: 640px) 50vw, 100vw"
           />
           {verified ? (
             <Badge variant="success" className="absolute left-2.5 top-2.5 bg-card">
@@ -54,10 +54,10 @@ export function ListingCard({
           ) : null}
         </div>
         <div className="flex flex-1 flex-col gap-1.5 px-4 py-3.5">
-          <p className="text-[1.15rem] font-extrabold leading-none">
+          <p className="break-words text-[1.15rem] font-extrabold leading-none">
             {formatMWK(listing.price)}
           </p>
-          <p className="text-[0.92rem] font-semibold">{listing.title}</p>
+          <p className="text-[0.92rem] font-semibold leading-snug">{listing.title}</p>
           <div className="mt-0.5 flex flex-wrap items-center gap-3.5 text-[0.8rem] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />

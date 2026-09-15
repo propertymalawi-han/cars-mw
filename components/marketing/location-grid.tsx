@@ -13,9 +13,9 @@ const LOCATIONS = [
 export function LocationGrid() {
   return (
     <section className="pb-16 pt-0">
-      <div className="mx-auto w-full max-w-site px-6">
+      <div className="mx-auto w-full max-w-site px-4 sm:px-6">
         <div className="mb-7">
-          <h2 className="text-[1.35rem] font-bold tracking-tight">
+          <h2 className="text-[clamp(1.15rem,0.95rem+1vw,1.35rem)] font-bold tracking-tight">
             Popular locations
           </h2>
           <p className="mt-1 text-[0.9rem] text-muted-foreground">
@@ -27,7 +27,7 @@ export function LocationGrid() {
             <Button
               key={location.name}
               variant="outline"
-              className="h-auto justify-between px-4 py-3.5 text-[0.88rem] font-semibold shadow-none"
+              className="h-auto min-h-11 justify-between gap-2 whitespace-normal px-3 py-3.5 text-[0.88rem] font-semibold shadow-none sm:px-4"
               asChild
             >
               <Link href={`/listings?city=${encodeURIComponent(location.name)}`}>

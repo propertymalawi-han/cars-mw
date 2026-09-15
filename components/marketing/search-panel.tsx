@@ -53,14 +53,14 @@ export function SearchPanel() {
   }
 
   return (
-    <Card className="mt-10 p-5 shadow-md">
+    <Card className="mt-8 p-4 shadow-md sm:mt-10 sm:p-5">
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,1fr)_auto]"
+        className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 lg:grid-cols-[repeat(4,1fr)_auto]"
       >
         <Field label="Make" htmlFor="f-make">
           <Select value={make} onValueChange={setMake}>
-            <SelectTrigger id="f-make" className="h-[42px]">
+            <SelectTrigger id="f-make" className="h-11">
               <SelectValue placeholder="Any make" />
             </SelectTrigger>
             <SelectContent>
@@ -75,7 +75,7 @@ export function SearchPanel() {
         </Field>
         <Field label="Body type" htmlFor="f-body">
           <Select value={body} onValueChange={setBody}>
-            <SelectTrigger id="f-body" className="h-[42px]">
+            <SelectTrigger id="f-body" className="h-11">
               <SelectValue placeholder="Any type" />
             </SelectTrigger>
             <SelectContent>
@@ -90,7 +90,7 @@ export function SearchPanel() {
         </Field>
         <Field label="Location" htmlFor="f-loc">
           <Select value={city} onValueChange={setCity}>
-            <SelectTrigger id="f-loc" className="h-[42px]">
+            <SelectTrigger id="f-loc" className="h-11">
               <SelectValue placeholder="Anywhere in Malawi" />
             </SelectTrigger>
             <SelectContent>
@@ -110,10 +110,15 @@ export function SearchPanel() {
             onChange={(event) => setMaxPrice(event.target.value)}
             placeholder="e.g. 25,000,000"
             inputMode="numeric"
-            className="h-[42px]"
+            className="h-11"
           />
         </Field>
-        <Button type="submit" variant="copper" size="lg" className="w-full lg:w-auto">
+        <Button
+          type="submit"
+          variant="copper"
+          size="lg"
+          className="col-span-full h-11 w-full lg:col-auto lg:w-auto"
+        >
           Search
         </Button>
       </form>

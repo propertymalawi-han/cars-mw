@@ -23,10 +23,10 @@ const STEPS = [
 export function AboutSection() {
   return (
     <section id="about" className="scroll-mt-28 py-16">
-      <div className="mx-auto w-full max-w-site px-6">
-        <div className="grid items-center gap-[50px] lg:grid-cols-[0.85fr_1.15fr]">
-          <div>
-            <h2 className="mb-3.5 text-2xl font-bold tracking-tight">
+      <div className="mx-auto w-full max-w-site px-4 sm:px-6">
+        <div className="grid w-full grid-cols-1 items-center gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-[50px]">
+          <div className="min-w-0">
+            <h2 className="mb-3.5 text-[clamp(1.35rem,1rem+1.6vw,1.5rem)] font-bold tracking-tight">
               About CarsMW
             </h2>
             <p className="mb-3 text-[0.92rem] text-muted-foreground">
@@ -39,11 +39,11 @@ export function AboutSection() {
               pricing in Kwacha, verified dealers, and tools that help you
               understand real running and import costs before you buy.
             </p>
-            <Button asChild>
+            <Button asChild className="h-11 w-full sm:w-auto">
               <Link href="/listings">More about CarsMW</Link>
             </Button>
           </div>
-          <Card className="p-8">
+          <Card className="w-full p-5 sm:p-8">
             <div className="grid gap-5">
               {STEPS.map((step) => (
                 <div key={step.n} className="flex gap-3.5">

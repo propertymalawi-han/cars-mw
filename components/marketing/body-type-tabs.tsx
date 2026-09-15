@@ -16,9 +16,9 @@ export function BodyTypeTabs({ active = "all" }: { active?: string }) {
   const current = TABS.some((tab) => tab.id === active) ? active : "all";
 
   return (
-    <section className="pb-5 pt-16">
-      <div className="mx-auto w-full max-w-site px-6">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+    <section className="pb-5 pt-10 sm:pt-16">
+      <div className="mx-auto w-full max-w-site px-4 sm:px-6">
+        <div className="no-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
           {TABS.map((tab) => {
             const isActive = tab.id === current;
             const href =
@@ -28,7 +28,7 @@ export function BodyTypeTabs({ active = "all" }: { active?: string }) {
                 key={tab.id}
                 variant={isActive ? "default" : "outline"}
                 className={cn(
-                  "h-[38px] shrink-0 rounded-full px-4 text-[0.84rem] font-medium shadow-none",
+                  "h-11 shrink-0 snap-start rounded-full px-4 text-[0.84rem] font-medium shadow-none",
                   !isActive && "text-muted-foreground hover:text-foreground",
                 )}
                 asChild

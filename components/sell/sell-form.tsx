@@ -533,7 +533,7 @@ export function SellForm() {
                   {values.images.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No photos yet.</p>
                   ) : (
-                    <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {values.images.map((url, index) => (
                         <li key={url} className="overflow-hidden rounded-md border bg-muted">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -567,10 +567,11 @@ export function SellForm() {
               </CardContent>
             </TabsContent>
 
-            <CardFooter className="justify-between border-t px-6 py-4">
+            <CardFooter className="flex-col-reverse gap-3 border-t px-4 py-4 sm:flex-row sm:justify-between sm:px-6">
               <Button
                 type="button"
                 variant="outline"
+                className="h-11 w-full sm:w-auto"
                 onClick={handleBack}
                 disabled={currentIndex === 0 || form.formState.isSubmitting}
               >
@@ -580,6 +581,7 @@ export function SellForm() {
                 <Button
                   type="submit"
                   variant="copper"
+                  className="h-11 w-full sm:w-auto"
                   disabled={form.formState.isSubmitting || photosUploading}
                 >
                   {form.formState.isSubmitting ? "Publishing…" : "Publish listing"}
@@ -587,6 +589,7 @@ export function SellForm() {
               ) : (
                 <Button
                   type="button"
+                  className="h-11 w-full sm:w-auto"
                   onClick={() => void handleNext()}
                   disabled={photosUploading}
                 >
@@ -615,7 +618,7 @@ function SelectField({
   return (
     <Select value={value || undefined} onValueChange={onChange}>
       <FormControl>
-        <SelectTrigger className="h-10">
+        <SelectTrigger>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
       </FormControl>
@@ -648,9 +651,9 @@ function ReviewSection({
 
 function ReviewRow({ label, value }: { label: string; value?: string }) {
   return (
-    <div className="grid grid-cols-[8.5rem_1fr] gap-3 border-b px-4 py-2.5 text-sm last:border-b-0">
+    <div className="grid grid-cols-1 gap-1 border-b px-3 py-2.5 text-sm last:border-b-0 xs:grid-cols-[7.5rem_1fr] xs:gap-3 sm:grid-cols-[8.5rem_1fr] sm:px-4">
       <dt className="font-medium text-muted-foreground">{label}</dt>
-      <dd className="font-medium">{value || "—"}</dd>
+      <dd className="min-w-0 break-words font-medium">{value || "—"}</dd>
     </div>
   );
 }

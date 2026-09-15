@@ -85,8 +85,8 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-site space-y-12 px-6 py-10">
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.5fr)_320px]">
+    <div className="mx-auto w-full max-w-site space-y-10 px-4 py-8 sm:space-y-12 sm:px-6 sm:py-10">
+      <div className="grid min-w-0 items-start gap-8 lg:grid-cols-[minmax(0,1.5fr)_320px]">
         <div className="space-y-6">
           <ListingGallery images={listing.images} title={listing.title} />
 
@@ -98,8 +98,10 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
                 <Badge variant="copper">Sold</Badge>
               ) : null}
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">{listing.title}</h1>
-            <p className="text-[1.65rem] font-extrabold leading-none">
+            <h1 className="text-[clamp(1.5rem,1.1rem+2vw,1.875rem)] font-bold tracking-tight">
+              {listing.title}
+            </h1>
+            <p className="text-[clamp(1.35rem,1rem+1.6vw,1.65rem)] font-extrabold leading-none">
               {formatMWK(listing.price)}
             </p>
             <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -122,10 +124,10 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
                       key={spec.label}
                       className={index < specs.length - 1 ? "border-b" : undefined}
                     >
-                      <th className="w-[40%] bg-muted/60 px-4 py-2.5 text-left font-medium text-muted-foreground">
+                      <th className="w-[38%] bg-muted/60 px-3 py-2.5 text-left font-medium text-muted-foreground sm:w-[40%] sm:px-4">
                         {spec.label}
                       </th>
-                      <td className="px-4 py-2.5 font-medium">{spec.value}</td>
+                      <td className="px-3 py-2.5 font-medium sm:px-4">{spec.value}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -172,14 +174,14 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
       {related.length > 0 ? (
         <section className="space-y-5">
           <div>
-            <h2 className="text-[1.35rem] font-bold tracking-tight">
+            <h2 className="text-[clamp(1.15rem,0.95rem+1vw,1.35rem)] font-bold tracking-tight">
               Related listings
             </h2>
             <p className="mt-1 text-[0.9rem] text-muted-foreground">
               More {listing.make} cars and vehicles in {listing.district}.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 nav:grid-cols-3">
             {related.map((item) => (
               <ListingCard
                 key={item.id}

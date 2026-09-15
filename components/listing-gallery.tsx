@@ -38,7 +38,7 @@ export function ListingGallery({
 
   if (images.length === 0) {
     return (
-      <div className="aspect-[16/10] overflow-hidden rounded-lg border bg-muted" />
+      <div className="aspect-[16/9] overflow-hidden rounded-lg border bg-muted sm:aspect-[16/10]" />
     );
   }
 
@@ -48,7 +48,7 @@ export function ListingGallery({
         <CarouselContent className="-ml-0">
           {images.map((src, index) => (
             <CarouselItem key={`${src}-${index}`} className="pl-0">
-              <div className="relative aspect-[16/10] bg-muted">
+              <div className="relative aspect-[16/9] bg-muted sm:aspect-[16/10]">
                 <Image
                   src={src}
                   alt={`${title} — photo ${index + 1}`}
@@ -63,13 +63,13 @@ export function ListingGallery({
         </CarouselContent>
         {images.length > 1 ? (
           <>
-            <CarouselPrevious className="left-3 h-9 w-9 border-0 bg-card/90 shadow-sm disabled:opacity-40" />
-            <CarouselNext className="right-3 h-9 w-9 border-0 bg-card/90 shadow-sm disabled:opacity-40" />
+            <CarouselPrevious className="left-3 h-11 w-11 border-0 bg-card/90 shadow-sm disabled:opacity-40" />
+            <CarouselNext className="right-3 h-11 w-11 border-0 bg-card/90 shadow-sm disabled:opacity-40" />
           </>
         ) : null}
       </Carousel>
       {images.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="no-scrollbar flex gap-2 overflow-x-auto">
           {images.map((src, index) => (
             <button
               key={`${src}-thumb-${index}`}

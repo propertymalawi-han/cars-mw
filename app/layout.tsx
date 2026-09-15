@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className={`${inter.variable} min-h-screen bg-background font-sans antialiased`}>
         <div className="flex min-h-screen flex-col">
           <SiteHeader />
-          <main className="flex-1">{children}</main>
+          <main className="min-w-0 flex-1">{children}</main>
           <SiteFooter />
         </div>
       </body>

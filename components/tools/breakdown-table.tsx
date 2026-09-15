@@ -28,8 +28,8 @@ export function BreakdownTable({
             >
               <th
                 scope="row"
-                className={cn(
-                  "w-[55%] px-4 py-2.5 text-left font-medium",
+        className={cn(
+          "w-[55%] px-3 py-2.5 text-left font-medium sm:px-4",
                   row.total
                     ? "text-foreground"
                     : "bg-muted/60 text-muted-foreground",
@@ -39,7 +39,7 @@ export function BreakdownTable({
               </th>
               <td
                 className={cn(
-                  "px-4 py-2.5 text-right tabular-nums",
+                  "px-3 py-2.5 text-right tabular-nums sm:px-4",
                   row.total ? "font-semibold" : "font-medium",
                 )}
               >
