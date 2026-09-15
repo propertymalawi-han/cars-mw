@@ -31,9 +31,9 @@ const COLUMNS = [
 export function Footer() {
   return (
     <footer className="mt-5 bg-primary pb-6 pt-12 text-primary-foreground/60">
-      <div className="mx-auto w-full max-w-site px-6">
-        <div className="grid grid-cols-2 gap-8 border-b border-primary-foreground/10 pb-7 md:grid-cols-4">
-          <div className="col-span-2 md:col-span-1">
+      <div className="mx-auto w-full max-w-site px-4 sm:px-6">
+        <div className="grid grid-cols-1 gap-8 border-b border-primary-foreground/10 pb-7 xs:grid-cols-2 md:grid-cols-4">
+          <div className="xs:col-span-2 md:col-span-1">
             <BrandLink light />
             <p className="mt-3 max-w-[32ch] text-[0.85rem]">
               Malawi&apos;s marketplace for buying and selling cars, bakkies and
@@ -50,7 +50,7 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="text-[0.85rem] hover:text-primary-foreground"
+                      className="inline-flex min-h-11 items-center text-[0.85rem] hover:text-primary-foreground"
                     >
                       {link.label}
                     </Link>

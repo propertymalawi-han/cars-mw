@@ -55,7 +55,7 @@ export function ValuationEstimator() {
   }, [make, model, yearValue, mileageValue]);
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid min-w-0 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Card>
         <CardHeader>
           <CardTitle>Vehicle details</CardTitle>
@@ -150,7 +150,7 @@ export function ValuationEstimator() {
             <>
               <div>
                 <p className="text-sm text-muted-foreground">Today&apos;s range</p>
-                <p className="mt-1 text-2xl font-extrabold leading-snug">
+                <p className="mt-1 break-words text-[clamp(1.15rem,0.9rem+1.5vw,1.5rem)] font-extrabold leading-snug">
                   {formatMWK(result.low)} – {formatMWK(result.high)}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">

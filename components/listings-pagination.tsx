@@ -25,7 +25,7 @@ export function ListingsPagination({
 
   return (
     <Pagination>
-      <PaginationContent>
+      <PaginationContent className="max-w-full flex-wrap justify-center gap-1">
         <PaginationItem>
           <PaginationPrevious
             href={listingsHref({ ...filters, page: Math.max(1, page - 1) })}

@@ -37,9 +37,9 @@ export default async function ListingsPage({ searchParams }: ListingsPageProps) 
   const filtered = hasActiveFilters(filters);
 
   return (
-    <div className="mx-auto w-full max-w-site px-6 py-10">
+    <div className="mx-auto w-full max-w-site px-4 py-8 sm:px-6 sm:py-10">
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="text-[clamp(1.5rem,1.1rem+2vw,1.875rem)] font-semibold tracking-tight">
           Cars for sale in Malawi
         </h1>
         <p className="text-muted-foreground">
@@ -48,7 +48,7 @@ export default async function ListingsPage({ searchParams }: ListingsPageProps) 
         </p>
       </div>
 
-      <div className="mt-8 grid items-start gap-8 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-8">
         <SearchFilters filters={filters} makes={makes} />
 
         <div className="space-y-6">
@@ -59,7 +59,7 @@ export default async function ListingsPage({ searchParams }: ListingsPageProps) 
           </p>
 
           {listings.length > 0 ? (
-            <div className="grid gap-[18px] sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-3">
               {listings.map((listing) => (
                 <ListingCard
                   key={listing.id}

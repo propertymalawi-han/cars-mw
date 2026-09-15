@@ -21,7 +21,7 @@ export function FormStepper({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-1 sm:flex-row sm:items-end sm:gap-4">
         <p className="text-sm font-medium">
           Step {currentIndex + 1} of {SELL_STEPS.length}
           <span className="ml-1.5 font-normal text-muted-foreground">
@@ -48,7 +48,7 @@ export function FormStepper({
                 if (isReachable) onStepSelect(step.id);
               }}
               className={cn(
-                "relative flex min-w-0 flex-1 flex-col items-center gap-2 rounded-none bg-transparent p-0 shadow-none",
+                "relative flex min-h-11 min-w-0 flex-1 flex-col items-center gap-2 rounded-none bg-transparent p-0 shadow-none",
                 "data-[state=active]:bg-transparent data-[state=active]:shadow-none",
                 "disabled:opacity-40",
               )}
@@ -62,7 +62,7 @@ export function FormStepper({
                 />
                 <span
                   className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-xs font-semibold sm:h-8 sm:w-8",
                     isCurrent && "border-copper bg-copper text-copper-foreground",
                     isComplete && "border-primary bg-primary text-primary-foreground",
                     !isCurrent && !isComplete && "border-border bg-card text-muted-foreground",

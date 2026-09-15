@@ -13,16 +13,16 @@ import {
 export function ToolsSection() {
   return (
     <section id="tools" className="scroll-mt-28 py-16">
-      <div className="mx-auto w-full max-w-site px-6">
+      <div className="mx-auto w-full max-w-site px-4 sm:px-6">
         <div className="mb-7">
-          <h2 className="text-[1.35rem] font-bold tracking-tight">
+          <h2 className="text-[clamp(1.15rem,0.95rem+1vw,1.35rem)] font-bold tracking-tight">
             Useful tools
           </h2>
           <p className="mt-1 text-[0.9rem] text-muted-foreground">
             Make a confident decision before you buy or sell.
           </p>
         </div>
-        <div className="grid gap-[18px] md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2">
           <ToolCard
             icon={<Banknote className="h-5 w-5 text-primary" />}
             title="Free car valuation"
@@ -58,7 +58,7 @@ function ToolCard({
 }) {
   return (
     <Card className="p-0">
-      <CardHeader className="space-y-4 p-[26px] pb-0">
+      <CardHeader className="space-y-4 p-5 pb-0 sm:p-[26px] sm:pb-0">
         <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-background">
           {icon}
         </div>
@@ -67,8 +67,8 @@ function ToolCard({
           <CardDescription className="text-[0.87rem]">{body}</CardDescription>
         </div>
       </CardHeader>
-      <CardContent className="p-[26px] pt-4">
-        <Button variant="outline" size="sm" asChild>
+      <CardContent className="p-5 pt-4 sm:p-[26px] sm:pt-4">
+        <Button variant="outline" size="sm" className="h-11 md:h-[34px]" asChild>
           <Link href={href}>{cta}</Link>
         </Button>
       </CardContent>

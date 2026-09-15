@@ -107,7 +107,7 @@ export function PhotoUploader({
         onDragLeave={() => setOver(false)}
         onDrop={handleDrop}
         className={cn(
-          "flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed bg-card px-6 py-10 text-center transition-colors",
+          "flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed bg-card px-4 py-8 text-center transition-colors sm:px-6 sm:py-10",
           over ? "border-copper bg-copper/5" : "border-input hover:border-muted-foreground",
           disabled && "pointer-events-none opacity-50",
         )}
