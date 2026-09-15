@@ -2,26 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* Canvas #F6F6F4, navy #101826, copper #B8481E, border #E3E3DF */
+    --background: 60 10% 96%;
+    --foreground: 218 41% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 218 41% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 218 41% 11%;
+    --primary: 218 41% 11%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 215 29% 16%;
+    --secondary: 60 8% 94%;
+    --secondary-foreground: 218 41% 11%;
+    --muted: 60 8% 94%;
+    --muted-foreground: 217 11% 40%;
+    --accent: 60 8% 94%;
+    --accent-foreground: 218 41% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 60 7% 88%;
+    --input: 60 7% 88%;
+    --ring: 218 41% 11%;
+    --copper: 16 72% 42%;
+    --copper-foreground: 0 0% 100%;
+    --success: 149 41% 31%;
+    --success-foreground: 0 0% 100%;
+    --radius: 0.625rem;
+    --shadow-sm: 0 1px 2px hsl(218 41% 11% / 0.06);
+    --shadow-md: 0 6px 20px -6px hsl(218 41% 11% / 0.14);
+    --chart-1: 16 72% 42%;
+    --chart-2: 149 41% 31%;
+    --chart-3: 218 41% 11%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --background: 221 42% 9%;
+    --foreground: 210 10% 93%;
+    --card: 220 34% 12%;
+    --card-foreground: 210 10% 93%;
+    --popover: 220 34% 12%;
+    --popover-foreground: 210 10% 93%;
+    --primary: 218 41% 7%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 217 31% 15%;
+    --secondary: 220 28% 16%;
+    --secondary-foreground: 210 10% 93%;
+    --muted: 220 28% 16%;
+    --muted-foreground: 214 11% 63%;
+    --accent: 220 28% 16%;
+    --accent-foreground: 210 10% 93%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 100% / 0.1;
+    --input: 0 0% 100% / 0.1;
+    --ring: 210 10% 93%;
+    --copper: 16 72% 42%;
+    --copper-foreground: 0 0% 100%;
+    --success: 149 41% 38%;
+    --success-foreground: 0 0% 100%;
+    --shadow-sm: 0 1px 2px hsl(221 42% 4% / 0.4);
+    --shadow-md: 0 6px 20px -6px hsl(221 42% 4% / 0.55);
+    --chart-1: 16 72% 42%;
+    --chart-2: 149 41% 38%;
+    --chart-3: 210 10% 93%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-bold tracking-tight;
   }
 }

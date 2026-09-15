@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  user
+  dealer
+  admin
+}
+
+enum SellerType {
+  dealer
+  private
+}
+
+enum ListingStatus {
+  active
+  sold
+  draft
+}
+
+enum Transmission {
+  automatic
+  manual
+}
+
+enum FuelType {
+  petrol
+  diesel
+  hybrid
+  electric
+}
+
+enum BodyType {
+  sedan
+  suv
+  pickup
+  hatchback
+  van
+  other
+}
+
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  phone     String
+  email     String   @unique
+  role      UserRole @default(user)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  dealer   Dealer?
+  listings Listing[]
+
+  @@map("users")
+}
+
+model Dealer {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  slug      String   @unique
+  logoUrl   String?  @map("logo_url")
+  districts String[]
+  verified  Boolean  @default(false)
+  phone     String
+  whatsapp  String
+  userId    String   @unique @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("dealers")
+}
+
+model Listing {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String
+  make         String
+  model        String
+  year         Int
+  /// Price in Malawian Kwacha (integer, no decimals)
+  price        Int
+  mileage      Int
+  transmission Transmission
+  fuelType     FuelType       @map("fuel_type")
+  bodyType     BodyType       @map("body_type")
+  district     String
+  city         String
+  images       String[]
+  description  String
+  sellerId     String         @map("seller_id") @db.Uuid
+  seller       User           @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  sellerType   SellerType     @map("seller_type")
+  status       ListingStatus  @default(active)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([city])
+  @@index([district])
+  @@index([make, model])
+  @@index([price])
+  @@index([sellerId, sellerType])
+  @@map("listings")
+}
