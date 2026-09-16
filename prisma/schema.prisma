@@ -14,6 +14,11 @@ enum UserRole {
   admin
 }
 
+enum AccountType {
+  individual
+  dealer
+}
+
 enum SellerType {
   dealer
   private
@@ -23,6 +28,7 @@ enum ListingStatus {
   active
   sold
   draft
+  expired
 }
 
 enum Transmission {
@@ -46,34 +52,96 @@ enum BodyType {
   other
 }
 
+enum EnquiryStatus {
+  pending
+  replied
+  closed
+}
+
 model User {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  phone     String
-  email     String   @unique
-  role      UserRole @default(user)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  email         String      @unique
+  emailVerified DateTime?   @map("email_verified") @db.Timestamptz(6)
+  passwordHash  String?     @map("password_hash")
+  avatarUrl     String?     @map("avatar_url")
+  phone         String?
+  accountType   AccountType @default(individual) @map("account_type")
+  role          UserRole    @default(user)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   dealer   Dealer?
   listings Listing[]
+  accounts Account[]
+  sessions Session[]
+
+  favourites               Favourite[]
+  viewHistory              ViewHistory[]
+  enquiries                Enquiry[]
+  enquiryMessages          EnquiryMessage[]
+  reviews                  Review[]
+  notificationPreferences  NotificationPreference[]
 
   @@map("users")
 }
 
+model Account {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime @db.Timestamptz(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime @db.Timestamptz(6)
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
 model Dealer {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  slug      String   @unique
-  logoUrl   String?  @map("logo_url")
-  districts String[]
-  verified  Boolean  @default(false)
-  phone     String
-  whatsapp  String
-  userId    String   @unique @map("user_id") @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  slug        String   @unique
+  logoUrl     String?  @map("logo_url")
+  districts   String[]
+  verified    Boolean  @default(false)
+  phone       String
+  whatsapp    String
+  description String   @default("")
+  userId      String   @unique @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  enquiries Enquiry[]
+  reviews   Review[]
 
   @@map("dealers")
 }
@@ -96,16 +164,118 @@ model Listing {
   description  String
   sellerId     String         @map("seller_id") @db.Uuid
   seller       User           @relation(fields: [sellerId], references: [id], onDelete: Restrict)
-  sellerType   SellerType     @map("seller_type")
-  status       ListingStatus  @default(active)
-  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sellerType    SellerType     @map("seller_type")
+  status        ListingStatus  @default(active)
+  featuredUntil DateTime?      @map("featured_until") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  favourites  Favourite[]
+  viewHistory ViewHistory[]
+  enquiries   Enquiry[]
 
   @@index([status, createdAt(sort: Desc)])
+  @@index([featuredUntil])
   @@index([city])
   @@index([district])
   @@index([make, model])
   @@index([price])
   @@index([sellerId, sellerType])
   @@map("listings")
+}
+
+model Favourite {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("favourites")
+}
+
+model ViewHistory {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  viewedAt  DateTime @default(now()) @map("viewed_at") @db.Timestamptz(6)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@index([userId, viewedAt(sort: Desc)])
+  @@index([listingId, viewedAt(sort: Desc)])
+  @@map("view_history")
+}
+
+model Enquiry {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  listingId String        @map("listing_id") @db.Uuid
+  dealerId  String?       @map("dealer_id") @db.Uuid
+  message   String
+  status    EnquiryStatus @default(pending)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing  Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  dealer   Dealer?           @relation(fields: [dealerId], references: [id], onDelete: SetNull)
+  messages EnquiryMessage[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([dealerId, createdAt(sort: Desc)])
+  @@map("enquiries")
+}
+
+model EnquiryMessage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  enquiryId String   @map("enquiry_id") @db.Uuid
+  senderId  String   @map("sender_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  enquiry Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  sender  User    @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([enquiryId, createdAt])
+  @@map("enquiry_messages")
+}
+
+model Review {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  dealerId  String   @map("dealer_id") @db.Uuid
+  rating    Int
+  comment   String   @default("")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dealer Dealer @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dealerId])
+  @@index([dealerId, createdAt(sort: Desc)])
+  @@map("reviews")
+}
+
+model NotificationPreference {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  key             String
+  emailEnabled    Boolean  @default(true) @map("email_enabled")
+  smsEnabled      Boolean  @default(false) @map("sms_enabled")
+  whatsappEnabled Boolean  @default(false) @map("whatsapp_enabled")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@map("notification_preferences")
 }

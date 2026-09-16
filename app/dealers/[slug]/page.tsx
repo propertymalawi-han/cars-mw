@@ -21,7 +21,9 @@ export async function generateMetadata({
 
   return {
     title: dealer.name,
-    description: `${dealer.name} in ${dealer.districts.join(", ")} — cars for sale on CarsMW.`,
+    description:
+      dealer.description ||
+      `${dealer.name} in ${dealer.districts.join(", ")} — cars for sale on CarsMW.`,
   };
 }
 
@@ -36,26 +38,45 @@ export default async function DealerProfilePage({ params }: DealerPageProps) {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-10 px-4 py-8 sm:py-10">
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {dealer.verified ? <Badge>Verified dealer</Badge> : null}
-          {dealer.districts.map((district) => (
-            <Badge key={district} variant="outline">
-              {district}
-            </Badge>
-          ))}
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+        {dealer.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={dealer.logoUrl}
+            alt=""
+            className="size-20 rounded-lg border bg-card object-cover"
+          />
+        ) : (
+          <div className="flex size-20 items-center justify-center rounded-lg border bg-card text-2xl font-semibold">
+            {dealer.name.slice(0, 1)}
+          </div>
+        )}
+        <div className="min-w-0 flex-1 space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {dealer.verified ? <Badge variant="success">Verified dealer</Badge> : null}
+            {dealer.districts.map((district) => (
+              <Badge key={district} variant="outline">
+                {district}
+              </Badge>
+            ))}
+          </div>
+          <h1 className="text-[clamp(1.5rem,1.1rem+2vw,1.875rem)] font-semibold tracking-tight">
+            {dealer.name}
+          </h1>
+          {dealer.description ? (
+            <p className="max-w-3xl text-muted-foreground">{dealer.description}</p>
+          ) : null}
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-muted-foreground">Phone</dt>
+              <dd>{dealer.phone}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">WhatsApp</dt>
+              <dd>{dealer.whatsapp}</dd>
+            </div>
+          </dl>
         </div>
-        <h1 className="text-[clamp(1.5rem,1.1rem+2vw,1.875rem)] font-semibold tracking-tight">{dealer.name}</h1>
-        <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-muted-foreground">Phone</dt>
-            <dd>{dealer.phone}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">WhatsApp</dt>
-            <dd>{dealer.whatsapp}</dd>
-          </div>
-        </dl>
       </div>
 
       <section className="space-y-4">

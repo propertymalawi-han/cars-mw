@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
+import { FavouriteButton } from "@/components/account/favourite-button";
+import { RecordListingView } from "@/components/account/record-listing-view";
+import { SendEnquiryForm } from "@/components/account/send-enquiry-form";
 import { ContactSeller } from "@/components/contact-seller";
 import { ListingCard } from "@/components/listing-card";
 import { ListingGallery } from "@/components/listing-gallery";
@@ -14,6 +17,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { auth } from "@/auth";
+import { getEnquiryForListing } from "@/lib/account";
 import { formatMWK } from "@/lib/currency";
 import {
   dealerForListing,
@@ -23,6 +28,9 @@ import {
   getRelatedListings,
   getSellerContact,
 } from "@/lib/data";
+import { listingDisplayParts } from "@/lib/listing-title";
+import { isListingFeatured } from "@/lib/listing-featured";
+import { prisma } from "@/lib/prisma";
 import { BODY_TYPE_LABELS } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -43,9 +51,12 @@ export async function generateMetadata({
     return { title: "Listing not found" };
   }
 
+  const { headline, subtitle } = listingDisplayParts(listing);
+  const title = subtitle ? `${headline} ${subtitle}` : headline;
+
   return {
-    title: listing.title,
-    description: `${listing.title} in ${listing.city} for ${formatMWK(listing.price)}.`,
+    title,
+    description: `${title} in ${listing.city} for ${formatMWK(listing.price)}.`,
   };
 }
 
@@ -56,18 +67,32 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
     notFound();
   }
 
-  const [dealer, privateSeller, related, dealers] = await Promise.all([
+  const session = await auth();
+  const [dealer, privateSeller, related, dealers, favourite, existingEnquiry] = await Promise.all([
     getDealerForListing(listing),
     listing.sellerType === "private"
       ? getSellerContact(listing.sellerId)
       : Promise.resolve(undefined),
     getRelatedListings(listing),
     getDealers(),
+    session?.user?.id
+      ? prisma.favourite.findUnique({
+          where: {
+            userId_listingId: { userId: session.user.id, listingId: listing.id },
+          },
+          select: { id: true },
+        })
+      : Promise.resolve(null),
+    session?.user?.id
+      ? getEnquiryForListing(session.user.id, listing.id)
+      : Promise.resolve(null),
   ]);
 
   const sellerName = dealer?.name ?? privateSeller?.name ?? "Private seller";
   const sellerPhone = dealer?.phone ?? privateSeller?.phone ?? "";
   const sellerWhatsapp = dealer?.whatsapp ?? privateSeller?.phone ?? "";
+  const { headline, subtitle } = listingDisplayParts(listing);
+  const displayTitle = subtitle ? `${headline} ${subtitle}` : headline;
   const specs = [
     { label: "Make", value: listing.make },
     { label: "Model", value: listing.model },
@@ -86,21 +111,36 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
 
   return (
     <div className="mx-auto w-full max-w-site space-y-10 px-4 py-8 sm:space-y-12 sm:px-6 sm:py-10">
+      {session?.user?.id ? <RecordListingView listingId={listing.id} /> : null}
       <div className="grid min-w-0 items-start gap-8 lg:grid-cols-[minmax(0,1.5fr)_320px]">
         <div className="space-y-6">
-          <ListingGallery images={listing.images} title={listing.title} />
+          <ListingGallery images={listing.images} title={displayTitle} />
 
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">{BODY_TYPE_LABELS[listing.bodyType]}</Badge>
               <Badge variant="outline">{listing.year}</Badge>
+              {isListingFeatured(listing.featuredUntil) ? (
+                <Badge variant="copper">Featured</Badge>
+              ) : null}
               {listing.status === "sold" ? (
                 <Badge variant="copper">Sold</Badge>
               ) : null}
+              {listing.status === "expired" ? (
+                <Badge variant="outline">Expired</Badge>
+              ) : null}
             </div>
-            <h1 className="text-[clamp(1.5rem,1.1rem+2vw,1.875rem)] font-bold tracking-tight">
-              {listing.title}
-            </h1>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-[clamp(1.5rem,1.1rem+2vw,1.875rem)] font-bold tracking-tight">
+                {headline}
+              </h1>
+              {session?.user?.id ? (
+                <FavouriteButton listingId={listing.id} saved={Boolean(favourite)} />
+              ) : null}
+            </div>
+            {subtitle ? (
+              <p className="text-base text-muted-foreground">{subtitle}</p>
+            ) : null}
             <p className="text-[clamp(1.35rem,1rem+1.6vw,1.65rem)] font-extrabold leading-none">
               {formatMWK(listing.price)}
             </p>
@@ -164,8 +204,18 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
               <ContactSeller
                 phone={sellerPhone}
                 whatsapp={sellerWhatsapp}
-                listingTitle={listing.title}
+                listingTitle={displayTitle}
               />
+              {session?.user?.id !== listing.sellerId && listing.status === "active" ? (
+                <>
+                  <Separator />
+                  <SendEnquiryForm
+                    listingId={listing.id}
+                    returnTo={`/listings/${listing.id}`}
+                    existingEnquiryId={existingEnquiry?.id}
+                  />
+                </>
+              ) : null}
             </CardContent>
           </Card>
         </aside>

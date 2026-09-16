@@ -26,6 +26,9 @@ export function getSupabase(): SupabaseClient<Database> {
   if (!client) {
     client = createClient<Database>(url, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+      },
     });
   }
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { AuthSessionProvider } from "@/components/auth/session-provider";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -28,11 +29,13 @@ export default function RootLayout({
   return (
     <html lang="en-MW">
       <body className={`${inter.variable} min-h-screen bg-background font-sans antialiased`}>
-        <div className="flex min-h-screen flex-col">
-          <SiteHeader />
-          <main className="min-w-0 flex-1">{children}</main>
-          <SiteFooter />
-        </div>
+        <AuthSessionProvider>
+          <div className="flex min-h-screen flex-col">
+            <SiteHeader />
+            <main className="min-w-0 flex-1">{children}</main>
+            <SiteFooter />
+          </div>
+        </AuthSessionProvider>
       </body>
     </html>
   );

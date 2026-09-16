@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -35,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FormStepper } from "@/components/sell/form-stepper";
 import { PhotoUploader } from "@/components/sell/photo-uploader";
 import { formatMWK } from "@/lib/currency";
+import { buildListingTitle } from "@/lib/listing-title";
 import {
   listingFormDefaults,
   listingSchema,
@@ -61,16 +63,24 @@ function numberInputValue(value: unknown) {
   return typeof value === "number" && !Number.isNaN(value) ? value : "";
 }
 
-export function SellForm() {
+export function SellForm({
+  defaultValues,
+  listingId,
+  redirectTo,
+}: {
+  defaultValues?: Partial<ListingFormInput>;
+  listingId?: string;
+  redirectTo?: string;
+} = {}) {
   const router = useRouter();
   const [step, setStep] = useState<SellStepId>("vehicle");
-  const [highest, setHighest] = useState<SellStepId>("vehicle");
+  const [highest, setHighest] = useState<SellStepId>(listingId ? "review" : "vehicle");
   const [photosUploading, setPhotosUploading] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
 
   const form = useForm<ListingFormInput, unknown, ListingFormValues>({
     resolver: zodResolver(listingSchema),
-    defaultValues: listingFormDefaults,
+    defaultValues: { ...listingFormDefaults, ...defaultValues },
     mode: "onTouched",
     reValidateMode: "onChange",
   });
@@ -78,6 +88,11 @@ export function SellForm() {
   const currentIndex = SELL_STEPS.findIndex((item) => item.id === step);
   const isLast = currentIndex === SELL_STEPS.length - 1;
   const values = form.watch();
+  const generatedTitle = buildListingTitle({
+    year: values.year,
+    make: values.make,
+    model: values.model,
+  });
 
   function goTo(next: SellStepId) {
     const nextIndex = SELL_STEPS.findIndex((item) => item.id === next);
@@ -104,17 +119,20 @@ export function SellForm() {
 
   async function onPublish(data: ListingFormValues) {
     setPublishError(null);
-    const response = await fetch("/api/listings", {
-      method: "POST",
+    const response = await fetch(listingId ? `/api/listings/${listingId}` : "/api/listings", {
+      method: listingId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        title: buildListingTitle(data),
+      }),
     });
     const json = (await response.json()) as { id?: string; error?: string };
     if (!response.ok || !json.id) {
       setPublishError(json.error ?? "Could not publish the listing.");
       return;
     }
-    router.push(`/listings/${json.id}`);
+    router.push(redirectTo ?? `/listings/${json.id}`);
   }
 
   return (
@@ -145,19 +163,6 @@ export function SellForm() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem className="sm:col-span-2">
-                      <FormLabel>Listing title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="2018 Toyota Hilux D-4D Double Cab" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
@@ -247,6 +252,23 @@ export function SellForm() {
                       </FormItem>
                     )}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="generated-listing-title">Listing title</Label>
+                  <Input
+                    id="generated-listing-title"
+                    readOnly
+                    tabIndex={-1}
+                    value={generatedTitle}
+                    placeholder="2018 BMW X5"
+                    className="bg-muted/50"
+                  />
+                  <p className="text-[0.8rem] text-muted-foreground">
+                    Generated from year, make, and model. Buyers will see this on
+                    your listing.
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
                     name="bodyType"
@@ -500,7 +522,7 @@ export function SellForm() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <ReviewSection title="Vehicle" onEdit={() => goTo("vehicle")}>
-                  <ReviewRow label="Title" value={values.title} />
+                  <ReviewRow label="Title" value={generatedTitle} />
                   <ReviewRow label="Make" value={values.make} />
                   <ReviewRow label="Model" value={values.model} />
                   <ReviewRow label="Year" value={values.year ? String(values.year) : ""} />
@@ -584,7 +606,13 @@ export function SellForm() {
                   className="h-11 w-full sm:w-auto"
                   disabled={form.formState.isSubmitting || photosUploading}
                 >
-                  {form.formState.isSubmitting ? "Publishing…" : "Publish listing"}
+                  {form.formState.isSubmitting
+                    ? listingId
+                      ? "Saving…"
+                      : "Publishing…"
+                    : listingId
+                      ? "Save listing"
+                      : "Publish listing"}
                 </Button>
               ) : (
                 <Button

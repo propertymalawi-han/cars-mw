@@ -33,6 +33,8 @@ export const users: User[] = [
     phone: "+265 888 221 001",
     email: "thokozani@capitalmotors.mw",
     role: "dealer",
+    accountType: "dealer",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.chikondi,
@@ -40,6 +42,8 @@ export const users: User[] = [
     phone: "+265 888 410 002",
     email: "chikondi@southernauto.mw",
     role: "dealer",
+    accountType: "dealer",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.mwai,
@@ -47,6 +51,8 @@ export const users: User[] = [
     phone: "+265 888 118 003",
     email: "mwai@lakedrive.mw",
     role: "dealer",
+    accountType: "dealer",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.loveness,
@@ -54,6 +60,8 @@ export const users: User[] = [
     phone: "+265 888 334 004",
     email: "loveness@zombaautohub.mw",
     role: "dealer",
+    accountType: "dealer",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.blessings,
@@ -61,6 +69,8 @@ export const users: User[] = [
     phone: "+265 888 550 005",
     email: "blessings@kanengojapan.mw",
     role: "dealer",
+    accountType: "dealer",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.yankho,
@@ -68,6 +78,8 @@ export const users: User[] = [
     phone: "+265 999 101 206",
     email: "yankho.moyo@gmail.com",
     role: "user",
+    accountType: "individual",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.tiyamike,
@@ -75,6 +87,8 @@ export const users: User[] = [
     phone: "+265 888 204 317",
     email: "tiyamike.nkhoma@yahoo.com",
     role: "user",
+    accountType: "individual",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.kondwani,
@@ -82,6 +96,8 @@ export const users: User[] = [
     phone: "+265 999 318 428",
     email: "kondwani.tembo@gmail.com",
     role: "user",
+    accountType: "individual",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.alinafe,
@@ -89,6 +105,8 @@ export const users: User[] = [
     phone: "+265 888 429 539",
     email: "alinafe.kachale@gmail.com",
     role: "user",
+    accountType: "individual",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.dalitso,
@@ -96,6 +114,8 @@ export const users: User[] = [
     phone: "+265 999 530 640",
     email: "dalitso.kaunda@outlook.com",
     role: "user",
+    accountType: "individual",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.pemphero,
@@ -103,6 +123,8 @@ export const users: User[] = [
     phone: "+265 888 641 751",
     email: "pemphero.jere@gmail.com",
     role: "user",
+    accountType: "individual",
+    avatarUrl: null,
   },
   {
     id: USER_IDS.chisomo,
@@ -110,6 +132,8 @@ export const users: User[] = [
     phone: "+265 999 752 862",
     email: "chisomo.nyirenda@gmail.com",
     role: "user",
+    accountType: "individual",
+    avatarUrl: null,
   },
 ];
 
@@ -123,6 +147,8 @@ export const dealers: Dealer[] = [
     verified: true,
     phone: "+265 1 770 221",
     whatsapp: "+265 888 221 001",
+    description:
+      "Lilongwe Japan-import yard specialising in Hilux, Prado, and family cars with service history.",
     userId: USER_IDS.thokozani,
   },
   {
@@ -134,6 +160,8 @@ export const dealers: Dealer[] = [
     verified: true,
     phone: "+265 1 822 410",
     whatsapp: "+265 888 410 002",
+    description:
+      "Southern Region stock from Blantyre — SUVs, sedans, and bakkies ready for viewing at Chichiri.",
     userId: USER_IDS.chikondi,
   },
   {
@@ -145,6 +173,8 @@ export const dealers: Dealer[] = [
     verified: false,
     phone: "+265 1 320 118",
     whatsapp: "+265 888 118 003",
+    description:
+      "Mzuzu and lakeshore runabouts. New dealer still building the yard — stock rotates weekly.",
     userId: USER_IDS.mwai,
   },
   {
@@ -156,6 +186,8 @@ export const dealers: Dealer[] = [
     verified: true,
     phone: "+265 1 525 334",
     whatsapp: "+265 888 334 004",
+    description:
+      "Zomba Auto Hub — compact cars and vans for town and campus, with delivery across the Eastern Region.",
     userId: USER_IDS.loveness,
   },
   {
@@ -167,6 +199,8 @@ export const dealers: Dealer[] = [
     verified: true,
     phone: "+265 1 761 550",
     whatsapp: "+265 888 550 005",
+    description:
+      "Kanengo Japan Imports — freshly landed units with auction sheets and a covered inspection bay.",
     userId: USER_IDS.blessings,
   },
 ];
@@ -191,6 +225,7 @@ export const listings: Listing[] = [
     sellerId: USER_IDS.thokozani,
     sellerType: "dealer",
     status: "active",
+    featuredUntil: "2026-10-16T00:00:00.000Z",
     createdAt: "2026-08-12T09:15:00.000Z",
   },
   {
@@ -212,6 +247,7 @@ export const listings: Listing[] = [
     sellerId: USER_IDS.chikondi,
     sellerType: "dealer",
     status: "active",
+    featuredUntil: "2026-10-02T00:00:00.000Z",
     createdAt: "2026-08-28T11:40:00.000Z",
   },
   {
