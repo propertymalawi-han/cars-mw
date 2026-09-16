@@ -1,6 +1,7 @@
 import { getSupabase } from "@/lib/supabase/server";
-import type { ListingFilters } from "@/lib/listing-filters";
+import { defaultListingFilters, type ListingFilters } from "@/lib/listing-filters";
 import { LISTINGS_PAGE_SIZE } from "@/lib/listing-filters";
+import { principalFromMonthlyPayment } from "@/lib/finance";
 import type { DealerRow, ListingRow } from "@/types/database";
 import type {
   BodyType,
@@ -10,6 +11,17 @@ import type {
   MalawiDistrict,
 } from "@/types";
 import { BODY_TYPES } from "@/types";
+import {
+  aggregateMakeFacets,
+  type ListingMakeRow,
+  type MakeFacet,
+} from "@/lib/make-picker";
+import {
+  DEFAULT_VEHICLE_CATEGORY,
+  emptyCategoryCounts,
+  isDbBodyType,
+  type CategoryCounts,
+} from "@/lib/vehicle-search";
 
 function mapListing(row: ListingRow): Listing {
   return {
@@ -188,13 +200,43 @@ export async function getFeaturedListings(bodyType?: string): Promise<Listing[]>
 }
 
 export async function getMakes(): Promise<string[]> {
-  const { data, error } = await getSupabase()
-    .from("listings")
-    .select("make")
-    .eq("status", "active");
+  const facets = await getMakeModelFacets(defaultListingFilters());
+  return facets.map((facet) => facet.make);
+}
 
-  throwIfError("Failed to load makes", error);
-  return Array.from(new Set((data ?? []).map((row) => row.make))).sort();
+const FACET_PAGE_SIZE = 1000;
+
+export async function getMakeModelFacets(filters: ListingFilters): Promise<MakeFacet[]> {
+  const facetFilters: ListingFilters = {
+    ...filters,
+    q: undefined,
+    makes: [],
+    models: [],
+    variants: [],
+    page: 1,
+  };
+  if (resolvedBodyTypes(facetFilters) === "none") return [];
+
+  const rows: ListingMakeRow[] = [];
+  let from = 0;
+  for (;;) {
+    const query = applyListingFilters(
+      getSupabase()
+        .from("listings")
+        .select("make, model, title")
+        .eq("status", "active")
+        .order("id", { ascending: true }),
+      facetFilters,
+    );
+    const { data, error } = await query.range(from, from + FACET_PAGE_SIZE - 1);
+    throwIfError("Failed to load make counts", error);
+    const batch = (data ?? []) as ListingMakeRow[];
+    rows.push(...batch);
+    if (batch.length < FACET_PAGE_SIZE) break;
+    from += FACET_PAGE_SIZE;
+  }
+
+  return aggregateMakeFacets(rows);
 }
 
 export type ListingSearchResult = {
@@ -205,37 +247,175 @@ export type ListingSearchResult = {
   totalPages: number;
 };
 
+function emptySearchResult(page: number): ListingSearchResult {
+  return {
+    listings: [],
+    total: 0,
+    page,
+    pageSize: LISTINGS_PAGE_SIZE,
+    totalPages: 1,
+  };
+}
+
+function resolvedPriceRange(filters: ListingFilters): {
+  minPrice?: number;
+  maxPrice?: number;
+} {
+  if (filters.pricing === "finance") {
+    return {
+      minPrice:
+        filters.minInstalment != null
+          ? (principalFromMonthlyPayment(filters.minInstalment) ?? undefined)
+          : undefined,
+      maxPrice:
+        filters.maxInstalment != null
+          ? (principalFromMonthlyPayment(filters.maxInstalment) ?? undefined)
+          : undefined,
+    };
+  }
+  return { minPrice: filters.minPrice, maxPrice: filters.maxPrice };
+}
+
+function resolvedBodyTypes(filters: ListingFilters): BodyType[] | "none" | "all" {
+  if (filters.category !== DEFAULT_VEHICLE_CATEGORY) return "none";
+  if (filters.bodyTypes.length === 0) return "all";
+  const dbBodies = filters.bodyTypes.filter(isDbBodyType);
+  if (dbBodies.length === 0) return "none";
+  return dbBodies;
+}
+
+function quoteFilterValue(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+function makeModelOrFilter(filters: ListingFilters): string | undefined {
+  const clauses: string[] = [];
+  for (const make of filters.makes) {
+    clauses.push(`make.ilike.${quoteFilterValue(make)}`);
+  }
+  for (const model of filters.models) {
+    clauses.push(
+      `and(make.ilike.${quoteFilterValue(model.make)},model.ilike.${quoteFilterValue(model.model)})`,
+    );
+  }
+  for (const variant of filters.variants) {
+    const titleNeedle = variant.variant.replace(/[%_,]/g, " ").trim();
+    if (!titleNeedle) continue;
+    clauses.push(
+      `and(make.ilike.${quoteFilterValue(variant.make)},model.ilike.${quoteFilterValue(variant.model)},title.ilike.${quoteFilterValue(`%${titleNeedle}`)})`,
+    );
+  }
+  return clauses.length > 0 ? clauses.join(",") : undefined;
+}
+
+function applyListingFilters<T>(query: T, filters: ListingFilters): T {
+  let next = query as {
+    or: (value: string) => typeof next;
+    eq: (column: string, value: string) => typeof next;
+    in: (column: string, values: string[]) => typeof next;
+    gte: (column: string, value: number) => typeof next;
+    lte: (column: string, value: number) => typeof next;
+    lt: (column: string, value: number) => typeof next;
+  };
+
+  const search = filters.q?.replace(/[%_,]/g, " ").trim();
+  if (search) {
+    const tokens = search.split(/\s+/).filter(Boolean).slice(0, 6);
+    for (const token of tokens) {
+      next = next.or(
+        `title.ilike.%${token}%,make.ilike.%${token}%,model.ilike.%${token}%`,
+      );
+    }
+  }
+
+  const makeFilter = makeModelOrFilter(filters);
+  if (makeFilter) next = next.or(makeFilter);
+
+  if (filters.districts.length === 1) {
+    next = next.eq("district", filters.districts[0]!);
+  } else if (filters.districts.length > 1) {
+    next = next.in("district", filters.districts);
+  }
+
+  const bodies = resolvedBodyTypes(filters);
+  if (bodies !== "all" && bodies !== "none") {
+    next =
+      bodies.length === 1
+        ? next.eq("body_type", bodies[0]!)
+        : next.in("body_type", bodies);
+  }
+
+  if (filters.transmission) next = next.eq("transmission", filters.transmission);
+  if (filters.sellerType) next = next.eq("seller_type", filters.sellerType);
+  if (filters.fuelTypes.length === 1) {
+    next = next.eq("fuel_type", filters.fuelTypes[0]!);
+  } else if (filters.fuelTypes.length > 1) {
+    next = next.in("fuel_type", filters.fuelTypes);
+  }
+
+  const { minPrice, maxPrice } = resolvedPriceRange(filters);
+  if (minPrice != null) next = next.gte("price", minPrice);
+  if (maxPrice != null) next = next.lte("price", maxPrice);
+  if (filters.minYear != null) next = next.gte("year", filters.minYear);
+  if (filters.maxYear != null) next = next.lte("year", filters.maxYear);
+  if (filters.minMileage != null) next = next.gte("mileage", filters.minMileage);
+  if (filters.maxMileage != null) next = next.lte("mileage", filters.maxMileage);
+
+  if (filters.condition === "new") {
+    next = next.gte("year", new Date().getFullYear());
+  } else if (filters.condition === "used") {
+    next = next.lt("year", new Date().getFullYear());
+  }
+
+  return next as T;
+}
+
+export async function countListings(filters: ListingFilters): Promise<number> {
+  if (resolvedBodyTypes(filters) === "none") return 0;
+
+  const query = applyListingFilters(
+    getSupabase()
+      .from("listings")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "active"),
+    filters,
+  );
+  const { count, error } = await query;
+  throwIfError("Failed to count listings", error);
+  return count ?? 0;
+}
+
+export async function getCategoryCounts(): Promise<CategoryCounts> {
+  const counts = emptyCategoryCounts();
+  const { count, error } = await getSupabase()
+    .from("listings")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "active");
+
+  throwIfError("Failed to load category counts", error);
+  counts.cars = count ?? 0;
+  return counts;
+}
+
 export async function searchListings(
   filters: ListingFilters,
 ): Promise<ListingSearchResult> {
-  let query = getSupabase()
-    .from("listings")
-    .select("*", { count: "exact" })
-    .eq("status", "active")
-    .order("created_at", { ascending: false });
-
-  const search = filters.q?.replace(/[%_,]/g, " ");
-  if (search) {
-    query = query.or(
-      `title.ilike.%${search}%,make.ilike.%${search}%,model.ilike.%${search}%`,
-    );
+  if (resolvedBodyTypes(filters) === "none") {
+    return emptySearchResult(filters.page);
   }
-
-  if (filters.city) query = query.eq("city", filters.city);
-  if (filters.district) query = query.eq("district", filters.district);
-  if (filters.make) query = query.ilike("make", filters.make);
-  if (filters.body.length === 1) {
-    query = query.eq("body_type", filters.body[0]);
-  } else if (filters.body.length > 1) {
-    query = query.in("body_type", filters.body);
-  }
-  if (filters.transmission) query = query.eq("transmission", filters.transmission);
-  if (filters.minPrice != null) query = query.gte("price", filters.minPrice);
-  if (filters.maxPrice != null) query = query.lte("price", filters.maxPrice);
 
   const pageSize = LISTINGS_PAGE_SIZE;
   const from = (filters.page - 1) * pageSize;
   const to = from + pageSize - 1;
+
+  const query = applyListingFilters(
+    getSupabase()
+      .from("listings")
+      .select("*", { count: "exact" })
+      .eq("status", "active")
+      .order("created_at", { ascending: false }),
+    filters,
+  );
 
   const { data, error, count } = await query.range(from, to);
   throwIfError("Failed to search listings", error);
