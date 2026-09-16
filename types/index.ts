@@ -62,9 +62,13 @@ export const FUEL_TYPES = ["petrol", "diesel", "hybrid", "electric"] as const;
 
 export const SELLER_TYPES = ["dealer", "private"] as const;
 
-export const LISTING_STATUSES = ["active", "sold", "draft"] as const;
+export const LISTING_STATUSES = ["active", "sold", "draft", "expired"] as const;
 
 export const USER_ROLES = ["user", "dealer", "admin"] as const;
+
+export const ACCOUNT_TYPES = ["individual", "dealer"] as const;
+
+export const ENQUIRY_STATUSES = ["pending", "replied", "closed"] as const;
 
 export const COMMON_MAKES = [
   "Toyota",
@@ -83,13 +87,18 @@ export type FuelType = (typeof FUEL_TYPES)[number];
 export type SellerType = (typeof SELLER_TYPES)[number];
 export type ListingStatus = (typeof LISTING_STATUSES)[number];
 export type UserRole = (typeof USER_ROLES)[number];
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+export type EnquiryStatus = (typeof ENQUIRY_STATUSES)[number];
 
 export interface User {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   email: string;
   role: UserRole;
+  accountType: AccountType;
+  avatarUrl: string | null;
+  emailVerified?: string | null;
 }
 
 export interface Dealer {
@@ -101,6 +110,7 @@ export interface Dealer {
   verified: boolean;
   phone: string;
   whatsapp: string;
+  description: string;
   /** Owning user; listing.sellerId equals this when sellerType is dealer. */
   userId: string;
 }
@@ -124,5 +134,16 @@ export interface Listing {
   sellerId: string;
   sellerType: SellerType;
   status: ListingStatus;
+  featuredUntil?: string | null;
+  createdAt: string;
+}
+
+export interface Enquiry {
+  id: string;
+  userId: string;
+  listingId: string;
+  dealerId: string | null;
+  message: string;
+  status: EnquiryStatus;
   createdAt: string;
 }

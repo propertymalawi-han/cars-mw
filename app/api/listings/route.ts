@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/session";
+import { listingWriteData } from "@/lib/listing-write";
+import { prisma } from "@/lib/prisma";
+import { buildListingTitle } from "@/lib/listing-title";
 import { getSupabase } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 import { listingSchema } from "@/lib/validations/listing";
@@ -20,8 +24,26 @@ export async function POST(request: Request) {
       );
     }
 
+    const user = await getCurrentUser();
+    if (user) {
+      const listing = await prisma.listing.create({
+        data: {
+          ...listingWriteData(parsed.data),
+          sellerId: user.id,
+          sellerType: user.accountType === "dealer" ? "dealer" : "private",
+          status: "active",
+        },
+      });
+      return NextResponse.json({ id: listing.id });
+    }
+
+    const listing = {
+      ...parsed.data,
+      title: buildListingTitle(parsed.data),
+    };
+
     const { data, error } = await getSupabase().rpc("create_private_listing", {
-      payload: parsed.data as unknown as Json,
+      payload: listing as unknown as Json,
     });
 
     if (error || !data) {

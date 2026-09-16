@@ -16,7 +16,6 @@ const requiredInt = (message: string) =>
   );
 
 export const vehicleStepSchema = z.object({
-  title: z.string().trim().min(8, "Title must be at least 8 characters"),
   make: z.string().trim().min(1, "Make is required"),
   model: z.string().trim().min(1, "Model is required"),
   year: requiredInt("Enter the year")
@@ -78,7 +77,6 @@ export const SELL_STEPS = [
     label: "Vehicle",
     description: "Car details",
     fields: [
-      "title",
       "make",
       "model",
       "year",
@@ -124,7 +122,6 @@ export const SELL_STEPS = [
 export type SellStepId = (typeof SELL_STEPS)[number]["id"];
 
 export const listingFormDefaults: ListingFormInput = {
-  title: "",
   make: "",
   model: "",
   year: undefined,

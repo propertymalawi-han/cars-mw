@@ -1,4 +1,12 @@
-import type { BodyType, FuelType, ListingStatus, SellerType, Transmission, UserRole } from "@/types";
+import type {
+  AccountType,
+  BodyType,
+  FuelType,
+  ListingStatus,
+  SellerType,
+  Transmission,
+  UserRole,
+} from "@/types";
 
 export type Json =
   | string
@@ -26,6 +34,7 @@ export type ListingRow = {
   seller_id: string;
   seller_type: SellerType;
   status: ListingStatus;
+  featured_until: string | null;
   created_at: string;
 };
 
@@ -38,15 +47,19 @@ export type DealerRow = {
   verified: boolean;
   phone: string;
   whatsapp: string;
+  description: string;
   user_id: string;
 };
 
 export type UserRow = {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   email: string;
   role: UserRole;
+  account_type: AccountType;
+  avatar_url: string | null;
+  email_verified: string | null;
 };
 
 export type Database = {
@@ -100,7 +113,7 @@ export type Database = {
       };
       users: {
         Row: UserRow;
-        Insert: Partial<UserRow> & Pick<UserRow, "name" | "phone" | "email">;
+        Insert: Partial<UserRow> & Pick<UserRow, "name" | "email">;
         Update: Partial<UserRow>;
         Relationships: [];
       };
@@ -114,6 +127,7 @@ export type Database = {
     };
     Enums: {
       UserRole: UserRole;
+      AccountType: AccountType;
       SellerType: SellerType;
       ListingStatus: ListingStatus;
       Transmission: Transmission;

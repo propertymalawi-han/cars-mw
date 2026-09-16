@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Menu } from "lucide-react";
+import { HeaderAuth } from "@/components/auth/header-auth";
 import { BrandLink } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -66,9 +67,7 @@ export function SiteHeader() {
             ))}
           </nav>
           <div className="flex items-center gap-2.5">
-            <Button variant="ghost" className="hidden nav:inline-flex" asChild>
-              <Link href="/sell">Sign in</Link>
-            </Button>
+            <HeaderAuth />
             <Button className="hidden nav:inline-flex" asChild>
               <Link href="/sell">Sell your car</Link>
             </Button>
@@ -119,15 +118,7 @@ export function SiteHeader() {
                     </SheetClose>
                   ))}
                   <Separator className="my-3" />
-                  <SheetClose asChild>
-                    <Button
-                      variant="ghost"
-                      className="h-11 w-full justify-start px-3"
-                      asChild
-                    >
-                      <Link href="/sell">Sign in</Link>
-                    </Button>
-                  </SheetClose>
+                  <HeaderAuth compact />
                   <SheetClose asChild>
                     <Button className="mt-2 h-11 w-full" asChild>
                       <Link href="/sell">Sell your car</Link>

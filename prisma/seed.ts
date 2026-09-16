@@ -4,14 +4,31 @@ import { dealers, listings, users } from "./seed-data";
 const prisma = new PrismaClient();
 
 async function main() {
+  await prisma.enquiryMessage.deleteMany();
+  await prisma.enquiry.deleteMany();
+  await prisma.favourite.deleteMany();
+  await prisma.viewHistory.deleteMany();
+  await prisma.review.deleteMany();
+  await prisma.notificationPreference.deleteMany();
   await prisma.listing.deleteMany();
   await prisma.dealer.deleteMany();
   await prisma.user.deleteMany();
 
-  await prisma.user.createMany({ data: users });
+  await prisma.user.createMany({
+    data: users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      email: user.email,
+      role: user.role,
+      accountType: user.accountType,
+      avatarUrl: user.avatarUrl,
+      emailVerified: new Date(),
+    })),
+  });
 
   await prisma.dealer.createMany({
-    data: dealers.map(({ id, name, slug, logoUrl, districts, verified, phone, whatsapp, userId }) => ({
+    data: dealers.map(({ id, name, slug, logoUrl, districts, verified, phone, whatsapp, description, userId }) => ({
       id,
       name,
       slug,
@@ -20,6 +37,7 @@ async function main() {
       verified,
       phone,
       whatsapp,
+      description,
       userId,
     })),
   });
@@ -43,6 +61,7 @@ async function main() {
       sellerId: listing.sellerId,
       sellerType: listing.sellerType,
       status: listing.status,
+      featuredUntil: listing.featuredUntil ? new Date(listing.featuredUntil) : null,
       createdAt: new Date(listing.createdAt),
     })),
   });

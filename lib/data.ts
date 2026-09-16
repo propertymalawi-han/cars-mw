@@ -22,6 +22,10 @@ import {
   isDbBodyType,
   type CategoryCounts,
 } from "@/lib/vehicle-search";
+import {
+  isPrivateListingPastTtl,
+  privateListingFreshnessOrFilter,
+} from "@/lib/listing-expiry";
 
 function mapListing(row: ListingRow): Listing {
   return {
@@ -42,6 +46,7 @@ function mapListing(row: ListingRow): Listing {
     sellerId: row.seller_id,
     sellerType: row.seller_type,
     status: row.status,
+    featuredUntil: row.featured_until,
     createdAt: row.created_at,
   };
 }
@@ -56,6 +61,7 @@ function mapDealer(row: DealerRow): Dealer {
     verified: row.verified,
     phone: row.phone,
     whatsapp: row.whatsapp,
+    description: row.description ?? "",
     userId: row.user_id,
   };
 }
@@ -121,12 +127,18 @@ export async function getListingById(id: string): Promise<Listing | undefined> {
     .maybeSingle();
 
   throwIfError("Failed to load listing", error);
-  return data ? mapListing(data) : undefined;
+  if (!data) return undefined;
+
+  const listing = mapListing(data);
+  if (isPrivateListingPastTtl(listing)) {
+    listing.status = "expired";
+  }
+  return listing;
 }
 
 export async function getSellerContact(
   id: string,
-): Promise<{ name: string; phone: string } | undefined> {
+): Promise<{ name: string; phone: string | null } | undefined> {
   const { data, error } = await getSupabase()
     .from("users")
     .select("name, phone")
@@ -145,6 +157,7 @@ export async function getRelatedListings(
     .from("listings")
     .select("*")
     .eq("status", "active")
+    .or(privateListingFreshnessOrFilter())
     .neq("id", listing.id)
     .or(`make.eq.${listing.make},district.eq.${listing.district}`)
     .order("created_at", { ascending: false })
@@ -169,34 +182,66 @@ export async function getListingsByDealer(slug: string): Promise<Listing[]> {
   const dealer = await getDealerBySlug(slug);
   if (!dealer) return [];
 
+  const now = new Date().toISOString();
   const { data, error } = await getSupabase()
     .from("listings")
     .select("*")
     .eq("seller_id", dealer.userId)
     .eq("seller_type", "dealer")
     .eq("status", "active")
+    .order("featured_until", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
 
   throwIfError("Failed to load dealer listings", error);
-  return (data ?? []).map(mapListing);
+  return sortFeaturedFirst((data ?? []).map(mapListing), now);
 }
 
 export async function getFeaturedListings(bodyType?: string): Promise<Listing[]> {
-  let query = getSupabase()
+  const now = new Date().toISOString();
+  const selectedBody = asBodyType(bodyType);
+  const limit = 6;
+
+  let featuredQuery = getSupabase()
     .from("listings")
     .select("*")
     .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(6);
+    .or(privateListingFreshnessOrFilter(new Date(now)))
+    .gt("featured_until", now)
+    .order("featured_until", { ascending: false })
+    .limit(limit);
 
-  const selectedBody = asBodyType(bodyType);
   if (selectedBody) {
-    query = query.eq("body_type", selectedBody);
+    featuredQuery = featuredQuery.eq("body_type", selectedBody);
   }
 
-  const { data, error } = await query;
-  throwIfError("Failed to load featured listings", error);
-  return (data ?? []).map(mapListing);
+  const { data: featuredRows, error: featuredError } = await featuredQuery;
+  throwIfError("Failed to load featured listings", featuredError);
+
+  const featured = (featuredRows ?? []).map(mapListing);
+  if (featured.length >= limit) return featured.slice(0, limit);
+
+  let fallbackQuery = getSupabase()
+    .from("listings")
+    .select("*")
+    .eq("status", "active")
+    .or(privateListingFreshnessOrFilter(new Date(now)))
+    .order("created_at", { ascending: false })
+    .limit(limit * 2);
+
+  if (selectedBody) {
+    fallbackQuery = fallbackQuery.eq("body_type", selectedBody);
+  }
+
+  const { data: fallbackRows, error: fallbackError } = await fallbackQuery;
+  throwIfError("Failed to load featured listings", fallbackError);
+
+  const seen = new Set(featured.map((listing) => listing.id));
+  for (const listing of (fallbackRows ?? []).map(mapListing)) {
+    if (seen.has(listing.id)) continue;
+    featured.push(listing);
+    if (featured.length >= limit) break;
+  }
+  return featured;
 }
 
 export async function getMakes(): Promise<string[]> {
@@ -225,6 +270,7 @@ export async function getMakeModelFacets(filters: ListingFilters): Promise<MakeF
         .from("listings")
         .select("make, model, title")
         .eq("status", "active")
+        .or(privateListingFreshnessOrFilter())
         .order("id", { ascending: true }),
       facetFilters,
     );
@@ -367,6 +413,8 @@ function applyListingFilters<T>(query: T, filters: ListingFilters): T {
     next = next.lt("year", new Date().getFullYear());
   }
 
+  next = next.or(privateListingFreshnessOrFilter());
+
   return next as T;
 }
 
@@ -377,7 +425,8 @@ export async function countListings(filters: ListingFilters): Promise<number> {
     getSupabase()
       .from("listings")
       .select("*", { count: "exact", head: true })
-      .eq("status", "active"),
+      .eq("status", "active")
+      .or(privateListingFreshnessOrFilter()),
     filters,
   );
   const { count, error } = await query;
@@ -390,11 +439,50 @@ export async function getCategoryCounts(): Promise<CategoryCounts> {
   const { count, error } = await getSupabase()
     .from("listings")
     .select("*", { count: "exact", head: true })
-    .eq("status", "active");
+    .eq("status", "active")
+    .or(privateListingFreshnessOrFilter());
 
   throwIfError("Failed to load category counts", error);
   counts.cars = count ?? 0;
   return counts;
+}
+
+function sortFeaturedFirst(listings: Listing[], nowIso: string) {
+  return [...listings].sort((a, b) => {
+    const aFeatured = a.featuredUntil && a.featuredUntil > nowIso ? 1 : 0;
+    const bFeatured = b.featuredUntil && b.featuredUntil > nowIso ? 1 : 0;
+    if (aFeatured !== bFeatured) return bFeatured - aFeatured;
+    if (aFeatured && bFeatured) {
+      return (b.featuredUntil ?? "").localeCompare(a.featuredUntil ?? "");
+    }
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+}
+
+async function searchListingSlice(
+  filters: ListingFilters,
+  mode: "featured" | "regular",
+  from: number,
+  to: number,
+): Promise<{ listings: Listing[]; count: number }> {
+  const now = new Date().toISOString();
+  const base = getSupabase()
+    .from("listings")
+    .select("*", { count: "exact" })
+    .eq("status", "active")
+    .or(privateListingFreshnessOrFilter());
+
+  const scoped =
+    mode === "featured"
+      ? base.gt("featured_until", now).order("featured_until", { ascending: false })
+      : base
+          .or(`featured_until.is.null,featured_until.lte.${now}`)
+          .order("created_at", { ascending: false });
+
+  const query = applyListingFilters(scoped, filters);
+  const { data, error, count } = await query.range(from, to);
+  throwIfError("Failed to search listings", error);
+  return { listings: (data ?? []).map(mapListing), count: count ?? 0 };
 }
 
 export async function searchListings(
@@ -406,28 +494,24 @@ export async function searchListings(
 
   const pageSize = LISTINGS_PAGE_SIZE;
   const from = (filters.page - 1) * pageSize;
-  const to = from + pageSize - 1;
+  const [featured, regular] = await Promise.all([
+    searchListingSlice(filters, "featured", 0, from + pageSize - 1),
+    searchListingSlice(filters, "regular", 0, from + pageSize - 1),
+  ]);
 
-  const query = applyListingFilters(
-    getSupabase()
-      .from("listings")
-      .select("*", { count: "exact" })
-      .eq("status", "active")
-      .order("created_at", { ascending: false }),
-    filters,
-  );
-
-  const { data, error, count } = await query.range(from, to);
-  throwIfError("Failed to search listings", error);
-
-  const total = count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const total = featured.count + regular.count;
+  const featuredOnPage =
+    from >= featured.count ? [] : featured.listings.slice(from, from + pageSize);
+  const remaining = pageSize - featuredOnPage.length;
+  const regularFrom = Math.max(0, from - featured.count);
+  const regularOnPage =
+    remaining > 0 ? regular.listings.slice(regularFrom, regularFrom + remaining) : [];
 
   return {
-    listings: (data ?? []).map(mapListing),
+    listings: [...featuredOnPage, ...regularOnPage],
     total,
     page: filters.page,
     pageSize,
-    totalPages,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
   };
 }
