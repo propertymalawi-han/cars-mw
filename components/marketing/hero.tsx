@@ -1,10 +1,18 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Briefcase, MapPin, ShieldCheck } from "lucide-react";
-import { SearchPanel } from "@/components/marketing/search-panel";
+import { VehicleSearchBar } from "@/components/search/vehicle-search-bar";
 import { Button } from "@/components/ui/button";
+import { countListings, getCategoryCounts, getMakeModelFacets } from "@/lib/data";
+import { defaultListingFilters } from "@/lib/listing-filters";
 
-export function Hero() {
+export async function Hero() {
+  const [categoryCounts, resultCount, makeFacets] = await Promise.all([
+    getCategoryCounts(),
+    countListings(defaultListingFilters()),
+    getMakeModelFacets(defaultListingFilters()),
+  ]);
+
   return (
     <section className="relative pt-8 sm:pt-12 lg:pt-16">
       <div className="mx-auto w-full max-w-site px-4 sm:px-6">
@@ -28,7 +36,11 @@ export function Hero() {
           </div>
           <MalawiMap />
         </div>
-        <SearchPanel />
+        <VehicleSearchBar
+          categoryCounts={categoryCounts}
+          resultCount={resultCount}
+          makeFacets={makeFacets}
+        />
       </div>
       <div className="mt-8 border-t sm:mt-11">
         <div className="mx-auto flex w-full max-w-site flex-col px-4 py-2 sm:flex-row sm:items-stretch sm:px-6 sm:py-[22px]">
