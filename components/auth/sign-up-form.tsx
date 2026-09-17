@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { withReturnTo } from "@/lib/return-to";
 import { cn } from "@/lib/utils";
 import {
   signUpSchema,
@@ -47,10 +48,8 @@ const signUpDefaults: SignUpInput = {
 
 export function SignUpForm({
   returnTo,
-  googleEnabled,
 }: {
   returnTo: string;
-  googleEnabled: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<"choose" | "details">("choose");
@@ -114,12 +113,19 @@ export function SignUpForm({
       return;
     }
 
-    router.push(`/verify-email/sent?email=${encodeURIComponent(values.email)}`);
+    router.push(
+      withReturnTo(
+        `/verify-email/sent?email=${encodeURIComponent(values.email)}`,
+        returnTo,
+      ),
+    );
   }
 
   if (step === "choose") {
     return (
       <div className="space-y-5">
+        <GoogleSignInButton returnTo={returnTo} />
+        <AuthDivider />
         <RadioGroup
           className="grid gap-3 sm:grid-cols-2"
           value={selectedType ?? ""}
@@ -183,7 +189,7 @@ export function SignUpForm({
         </p>
       ) : null}
 
-      {googleEnabled && accountType === "individual" ? (
+      {accountType === "individual" ? (
         <>
           <GoogleSignInButton returnTo={returnTo} />
           <AuthDivider />

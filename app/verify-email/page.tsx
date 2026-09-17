@@ -13,10 +13,21 @@ type VerifyEmailPageProps = {
   searchParams: {
     token?: string;
     email?: string;
+    token_hash?: string;
+    type?: string;
+    code?: string;
   };
 };
 
 export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageProps) {
+  if (searchParams.token_hash || searchParams.code) {
+    const params = new URLSearchParams();
+    if (searchParams.code) params.set("code", searchParams.code);
+    if (searchParams.token_hash) params.set("token_hash", searchParams.token_hash);
+    if (searchParams.type) params.set("type", searchParams.type);
+    redirect(`/auth/callback?${params.toString()}`);
+  }
+
   const token = searchParams.token;
   const email = searchParams.email;
 
@@ -29,7 +40,18 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
     );
   }
 
-  const result = await verifyEmailToken(email, token);
+  let result: { ok: true } | { ok: false; reason: string };
+  try {
+    result = await verifyEmailToken(email, token);
+  } catch (error) {
+    console.error("Failed to verify email token", error);
+    return (
+      <VerifyMessage
+        title="Could not verify email"
+        body="Use the latest link from your inbox, or request a new verification email from the sign-in page."
+      />
+    );
+  }
 
   if (result.ok) {
     redirect("/sign-in?verified=1");

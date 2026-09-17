@@ -124,6 +124,10 @@ export type Database = {
         Args: { payload: Json };
         Returns: string;
       };
+      register_account: {
+        Args: { payload: Json };
+        Returns: string;
+      };
     };
     Enums: {
       UserRole: UserRole;

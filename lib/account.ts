@@ -10,6 +10,7 @@ import {
   NOTIFICATION_PREFERENCES,
   type NotificationKey,
 } from "@/lib/notification-preferences";
+import { getSupabase } from "@/lib/supabase/server";
 import type { Dealer, Listing } from "@/types";
 
 const VIEW_HISTORY_LIMIT = 50;
@@ -29,6 +30,34 @@ export type AccountListingRow = {
 };
 
 export async function getAccountListings(sellerId: string): Promise<AccountListingRow[]> {
+  if (!process.env.DATABASE_URL) {
+    const { data, error } = await getSupabase()
+      .from("listings")
+      .select("id, title, make, model, year, price, status, images, created_at")
+      .eq("seller_id", sellerId)
+      .eq("seller_type", "private")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Failed to load listings:", error.message);
+      throw new Error(`Failed to load listings: ${error.message}`);
+    }
+
+    return (data ?? []).map((row) => ({
+      id: row.id,
+      title: row.title,
+      make: row.make,
+      model: row.model,
+      year: row.year,
+      price: row.price,
+      status: row.status,
+      images: row.images ?? [],
+      createdAt: row.created_at,
+      views: 0,
+      enquiries: 0,
+    }));
+  }
+
   await expireStalePrivateListings(sellerId);
 
   const rows = await prisma.listing.findMany({

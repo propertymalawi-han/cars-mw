@@ -16,9 +16,6 @@ type SignUpPageProps = {
 
 export default function SignUpPage({ searchParams }: SignUpPageProps) {
   const returnTo = safeReturnTo(searchParams.returnTo, "/account");
-  const googleEnabled = Boolean(
-    process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
-  );
 
   return (
     <AuthShell
@@ -26,9 +23,9 @@ export default function SignUpPage({ searchParams }: SignUpPageProps) {
       returnTo={returnTo}
       wide
       title="Create an account"
-      description="Join CarsMW to list cars, save your details, and manage a dealership."
+      description="Join CarsMW with Google, or with email. We’ll send a confirmation link before you can sign in."
     >
-      <SignUpForm returnTo={returnTo} googleEnabled={googleEnabled} />
+      <SignUpForm returnTo={returnTo} />
     </AuthShell>
   );
 }

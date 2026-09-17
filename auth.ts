@@ -2,9 +2,9 @@ import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "@/auth.config";
 import { CarsMwPrismaAdapter } from "@/lib/auth-adapter";
-import { verifyPassword } from "@/lib/password";
-import { prisma } from "@/lib/prisma";
+import { createSupabaseAuthClient } from "@/lib/supabase/server";
 import { signInSchema } from "@/lib/validations/auth";
+import type { AccountType, UserRole } from "@/types";
 
 class InvalidCredentialsError extends CredentialsSignin {
   code = "invalid_credentials";
@@ -12,10 +12,6 @@ class InvalidCredentialsError extends CredentialsSignin {
 
 class EmailNotVerifiedError extends CredentialsSignin {
   code = "email_not_verified";
-}
-
-class UseGoogleError extends CredentialsSignin {
-  code = "use_google";
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -36,71 +32,54 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new InvalidCredentialsError();
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email },
+        const supabase = createSupabaseAuthClient();
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: parsed.data.email,
+          password: parsed.data.password,
         });
 
-        if (!user) {
+        if (error || !data.user) {
+          const message = error?.message?.toLowerCase() ?? "";
+          if (
+            error?.code === "email_not_confirmed" ||
+            message.includes("email not confirmed")
+          ) {
+            throw new EmailNotVerifiedError();
+          }
           throw new InvalidCredentialsError();
         }
 
-        if (!user.passwordHash) {
-          throw new UseGoogleError();
-        }
+        const { data: profile } = await supabase
+          .from("users")
+          .select("id, name, email, account_type, role, avatar_url")
+          .eq("email", parsed.data.email)
+          .maybeSingle();
 
-        const valid = await verifyPassword(parsed.data.password, user.passwordHash);
-        if (!valid) {
-          throw new InvalidCredentialsError();
-        }
-
-        if (!user.emailVerified) {
-          throw new EmailNotVerifiedError();
-        }
+        const accountType = (profile?.account_type ?? "individual") as AccountType;
+        const role = (profile?.role ?? "user") as UserRole;
 
         return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.avatarUrl,
-          accountType: user.accountType,
-          role: user.role,
-          avatarUrl: user.avatarUrl,
+          id: profile?.id ?? data.user.id,
+          name: profile?.name ?? data.user.user_metadata?.name ?? data.user.email,
+          email: profile?.email ?? data.user.email,
+          image: profile?.avatar_url ?? data.user.user_metadata?.avatar_url,
+          accountType,
+          role,
+          avatarUrl: profile?.avatar_url ?? null,
         };
       },
     }),
   ],
   callbacks: {
     ...authConfig.callbacks,
-    async jwt({ token, user, trigger }) {
-      if (user?.id || trigger === "update") {
-        const userId = user?.id ?? (typeof token.id === "string" ? token.id : token.sub);
-        if (userId) {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: userId },
-            select: {
-              id: true,
-              accountType: true,
-              role: true,
-              avatarUrl: true,
-              name: true,
-              email: true,
-            },
-          });
-
-          if (dbUser) {
-            token.id = dbUser.id;
-            token.accountType = dbUser.accountType;
-            token.role = dbUser.role;
-            token.avatarUrl = dbUser.avatarUrl;
-            token.name = dbUser.name;
-            token.email = dbUser.email;
-          } else if (user?.id) {
-            token.id = user.id;
-            token.accountType = user.accountType;
-            token.role = user.role;
-            token.avatarUrl = user.avatarUrl ?? user.image ?? null;
-          }
-        }
+    async jwt({ token, user }) {
+      if (user?.id) {
+        token.id = user.id;
+        token.accountType = user.accountType ?? "individual";
+        token.role = user.role ?? "user";
+        token.avatarUrl = user.avatarUrl ?? user.image ?? null;
+        if (user.name) token.name = user.name;
+        if (user.email) token.email = user.email;
       }
 
       return token;

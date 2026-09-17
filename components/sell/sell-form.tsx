@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -73,10 +73,12 @@ export function SellForm({
   redirectTo?: string;
 } = {}) {
   const router = useRouter();
+  const publishLock = useRef(false);
   const [step, setStep] = useState<SellStepId>("vehicle");
   const [highest, setHighest] = useState<SellStepId>(listingId ? "review" : "vehicle");
   const [photosUploading, setPhotosUploading] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [published, setPublished] = useState(false);
 
   const form = useForm<ListingFormInput, unknown, ListingFormValues>({
     resolver: zodResolver(listingSchema),
@@ -84,6 +86,8 @@ export function SellForm({
     mode: "onTouched",
     reValidateMode: "onChange",
   });
+  const { isSubmitting } = form.formState;
+  const publishing = isSubmitting || published;
 
   const currentIndex = SELL_STEPS.findIndex((item) => item.id === step);
   const isLast = currentIndex === SELL_STEPS.length - 1;
@@ -118,33 +122,48 @@ export function SellForm({
   }
 
   async function onPublish(data: ListingFormValues) {
+    if (publishLock.current) return;
+    publishLock.current = true;
     setPublishError(null);
-    const response = await fetch(listingId ? `/api/listings/${listingId}` : "/api/listings", {
-      method: listingId ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...data,
-        title: buildListingTitle(data),
-      }),
-    });
-    const json = (await response.json()) as { id?: string; error?: string };
-    if (!response.ok || !json.id) {
-      setPublishError(json.error ?? "Could not publish the listing.");
-      return;
+    try {
+      const response = await fetch(listingId ? `/api/listings/${listingId}` : "/api/listings", {
+        method: listingId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          title: buildListingTitle(data),
+        }),
+      });
+      if (response.status === 401) {
+        publishLock.current = false;
+        router.push("/sign-in?returnTo=%2Fsell");
+        return;
+      }
+      const json = (await response.json()) as { id?: string; error?: string };
+      if (!response.ok || !json.id) {
+        publishLock.current = false;
+        setPublishError(json.error ?? "Could not publish the listing.");
+        return;
+      }
+      setPublished(true);
+      router.replace(redirectTo ?? "/account/listings");
+    } catch {
+      publishLock.current = false;
+      setPublishError("Could not publish the listing.");
     }
-    router.push(redirectTo ?? `/listings/${json.id}`);
   }
 
   return (
     <Form {...form}>
       <form
         onSubmit={(event) => {
+          event.preventDefault();
+          if (publishLock.current || published) return;
           if (step !== "review") {
-            event.preventDefault();
             void handleNext();
             return;
           }
-          void form.handleSubmit(onPublish)(event);
+          void form.handleSubmit(onPublish)();
         }}
         className="space-y-6"
       >
@@ -595,7 +614,7 @@ export function SellForm({
                 variant="outline"
                 className="h-11 w-full sm:w-auto"
                 onClick={handleBack}
-                disabled={currentIndex === 0 || form.formState.isSubmitting}
+                disabled={currentIndex === 0 || publishing}
               >
                 Back
               </Button>
@@ -604,9 +623,9 @@ export function SellForm({
                   type="submit"
                   variant="copper"
                   className="h-11 w-full sm:w-auto"
-                  disabled={form.formState.isSubmitting || photosUploading}
+                  disabled={publishing || photosUploading}
                 >
-                  {form.formState.isSubmitting
+                  {publishing
                     ? listingId
                       ? "Saving…"
                       : "Publishing…"

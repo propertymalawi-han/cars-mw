@@ -19,24 +19,16 @@ type SignInPageProps = {
 
 export default function SignInPage({ searchParams }: SignInPageProps) {
   const returnTo = safeReturnTo(searchParams.returnTo, "/account");
-  const googleEnabled = Boolean(
-    process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
-  );
 
   return (
     <AuthShell
       tab="sign-in"
       returnTo={returnTo}
       title="Sign in"
-      description={
-        googleEnabled
-          ? "Use your email and password, or continue with Google."
-          : "Use the email and password on your CarsMW account."
-      }
+      description="Use your email and password, or continue with Google."
     >
       <SignInForm
         returnTo={returnTo}
-        googleEnabled={googleEnabled}
         verified={searchParams.verified === "1"}
         reset={searchParams.reset === "1"}
         error={searchParams.error}
