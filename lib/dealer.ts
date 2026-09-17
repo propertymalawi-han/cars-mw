@@ -12,10 +12,15 @@ export async function requireDealerPage(returnTo = "/dealer/dashboard") {
   if (user.accountType !== "dealer") {
     redirect("/account");
   }
-  const dealer = await prisma.dealer.findUnique({
-    where: { userId: user.id },
-  });
-  return { user, dealer };
+  try {
+    const dealer = await prisma.dealer.findUnique({
+      where: { userId: user.id },
+    });
+    return { user, dealer };
+  } catch (error) {
+    console.error("Failed to load dealer profile", error);
+    throw new Error("Could not load the dealer dashboard.");
+  }
 }
 
 export async function requireDealerUser() {
@@ -138,6 +143,7 @@ export async function getDealerOverviewStats(
 
 export type DealerListingRow = {
   id: string;
+  vehicleNumber: number;
   title: string;
   make: string;
   model: string;
@@ -155,13 +161,25 @@ export async function getDealerListings(sellerId: string): Promise<DealerListing
   const rows = await prisma.listing.findMany({
     where: { sellerId, sellerType: "dealer" },
     orderBy: [{ createdAt: "desc" }],
-    include: {
+    select: {
+      id: true,
+      vehicleNumber: true,
+      title: true,
+      make: true,
+      model: true,
+      year: true,
+      price: true,
+      status: true,
+      images: true,
+      createdAt: true,
+      featuredUntil: true,
       _count: { select: { viewHistory: true, enquiries: true } },
     },
   });
 
   return rows.map((row) => ({
     id: row.id,
+    vehicleNumber: row.vehicleNumber,
     title: row.title,
     make: row.make,
     model: row.model,

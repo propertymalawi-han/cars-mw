@@ -1,4 +1,5 @@
 import type { Dealer, Listing, User } from "../types";
+import { nextSeedVehicleNumber } from "../lib/vehicle-id";
 
 const img = (id: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1200&q=80`;
@@ -205,7 +206,7 @@ export const dealers: Dealer[] = [
   },
 ];
 
-export const listings: Listing[] = [
+const listingRecords: Omit<Listing, "vehicleNumber">[] = [
   {
     id: "c0000000-0000-4000-8000-000000000001",
     title: "2018 Toyota Hilux D-4D Double Cab",
@@ -881,3 +882,8 @@ export const listings: Listing[] = [
     createdAt: "2026-09-15T06:30:00.000Z",
   },
 ];
+
+export const listings: Listing[] = listingRecords.map((listing, index) => ({
+  ...listing,
+  vehicleNumber: nextSeedVehicleNumber(index),
+}));

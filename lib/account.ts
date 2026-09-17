@@ -1,6 +1,5 @@
 import type {
   Dealer as PrismaDealer,
-  Listing as PrismaListing,
   ListingStatus,
 } from "@prisma/client";
 import { expireStalePrivateListings } from "@/lib/listing-expiry";
@@ -17,6 +16,7 @@ const VIEW_HISTORY_LIMIT = 50;
 
 export type AccountListingRow = {
   id: string;
+  vehicleNumber: number;
   title: string;
   make: string;
   model: string;
@@ -33,7 +33,7 @@ export async function getAccountListings(sellerId: string): Promise<AccountListi
   if (!process.env.DATABASE_URL) {
     const { data, error } = await getSupabase()
       .from("listings")
-      .select("id, title, make, model, year, price, status, images, created_at")
+      .select("id, vehicle_number, title, make, model, year, price, status, images, created_at")
       .eq("seller_id", sellerId)
       .eq("seller_type", "private")
       .order("created_at", { ascending: false });
@@ -45,6 +45,7 @@ export async function getAccountListings(sellerId: string): Promise<AccountListi
 
     return (data ?? []).map((row) => ({
       id: row.id,
+      vehicleNumber: row.vehicle_number,
       title: row.title,
       make: row.make,
       model: row.model,
@@ -63,13 +64,24 @@ export async function getAccountListings(sellerId: string): Promise<AccountListi
   const rows = await prisma.listing.findMany({
     where: { sellerId, sellerType: "private" },
     orderBy: [{ createdAt: "desc" }],
-    include: {
+    select: {
+      id: true,
+      vehicleNumber: true,
+      title: true,
+      make: true,
+      model: true,
+      year: true,
+      price: true,
+      status: true,
+      images: true,
+      createdAt: true,
       _count: { select: { viewHistory: true, enquiries: true } },
     },
   });
 
   return rows.map((row) => ({
     id: row.id,
+    vehicleNumber: row.vehicleNumber,
     title: row.title,
     make: row.make,
     model: row.model,
@@ -88,7 +100,7 @@ export type ListingWithDealer = {
   dealer?: Dealer;
 };
 
-type ListingWithSeller = PrismaListing & {
+type ListingWithSeller = Parameters<typeof mapPrismaListing>[0] & {
   seller: { dealer: PrismaDealer | null };
 };
 
@@ -99,15 +111,37 @@ function withDealer(listing: ListingWithSeller): ListingWithDealer {
   };
 }
 
-const listingWithSeller = {
-  seller: { include: { dealer: true } },
+const listingCardWithSeller = {
+  select: {
+    id: true,
+    vehicleNumber: true,
+    title: true,
+    make: true,
+    model: true,
+    year: true,
+    price: true,
+    mileage: true,
+    transmission: true,
+    fuelType: true,
+    bodyType: true,
+    district: true,
+    city: true,
+    images: true,
+    description: true,
+    sellerId: true,
+    sellerType: true,
+    status: true,
+    featuredUntil: true,
+    createdAt: true,
+    seller: { select: { dealer: true } },
+  },
 } as const;
 
 export async function getFavouriteListings(userId: string): Promise<ListingWithDealer[]> {
   const rows = await prisma.favourite.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
-    include: { listing: { include: listingWithSeller } },
+    include: { listing: listingCardWithSeller },
   });
   return rows.map((row) => withDealer(row.listing));
 }
@@ -127,7 +161,7 @@ export async function getViewHistory(userId: string): Promise<
     where: { userId },
     orderBy: { viewedAt: "desc" },
     take: VIEW_HISTORY_LIMIT,
-    include: { listing: { include: listingWithSeller } },
+    include: { listing: listingCardWithSeller },
   });
   return rows.map((row) => ({
     ...withDealer(row.listing),
@@ -166,7 +200,16 @@ export async function getUserEnquiries(userId: string) {
     where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
-      listing: { include: listingWithSeller },
+      listing: {
+        select: {
+          id: true,
+          title: true,
+          make: true,
+          model: true,
+          year: true,
+          images: true,
+        },
+      },
       dealer: true,
       messages: {
         orderBy: { createdAt: "asc" },

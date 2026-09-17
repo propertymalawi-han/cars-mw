@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ListingCard } from "@/components/listing-card";
 import { ListingsPagination } from "@/components/listings-pagination";
 import { VehicleSearchBar } from "@/components/search/vehicle-search-bar";
-import { dealerForListing, getCategoryCounts, getDealers, getMakeModelFacets, searchListings } from "@/lib/data";
+import { dealerForListing, getCategoryCounts, getMakeModelFacets, searchListings } from "@/lib/data";
 import {
   defaultListingFilters,
   hasActiveFilters,
@@ -12,8 +12,6 @@ import {
   type ListingSearchParams,
 } from "@/lib/listing-filters";
 import { categoryDisplayName, categoryNoun } from "@/lib/vehicle-search";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Browse listings",
@@ -26,14 +24,13 @@ type ListingsPageProps = {
 
 export default async function ListingsPage({ searchParams }: ListingsPageProps) {
   const filters = parseListingSearchParams(searchParams);
-  const [result, dealers, categoryCounts, makeFacets] = await Promise.all([
+  const [result, categoryCounts, makeFacets] = await Promise.all([
     searchListings(filters),
-    getDealers(),
     getCategoryCounts(),
     getMakeModelFacets(filters),
   ]);
 
-  const { listings, total, page, pageSize, totalPages } = result;
+  const { listings, dealers, total, page, pageSize, totalPages } = result;
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
   const noun = categoryNoun(filters.category, total);
@@ -69,11 +66,12 @@ export default async function ListingsPage({ searchParams }: ListingsPageProps) 
 
         {listings.length > 0 ? (
           <div className="grid min-w-0 grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-3">
-            {listings.map((listing) => (
+            {listings.map((listing, index) => (
               <ListingCard
                 key={listing.id}
                 listing={listing}
                 dealer={dealerForListing(listing, dealers)}
+                priority={index < 3}
               />
             ))}
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type DragEvent, type ChangeEvent } from "react";
+import Image from "next/image";
 import { ImagePlus, Loader2, Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -141,8 +142,15 @@ export function PhotoUploader({
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {value.map((url, index) => (
             <li key={url} className="group relative overflow-hidden rounded-lg border bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt={`Listing photo ${index + 1}`} className="aspect-[16/10] w-full object-cover" />
+              <div className="relative aspect-[16/10] w-full">
+                <Image
+                  src={url}
+                  alt={`Listing photo ${index + 1}`}
+                  fill
+                  className="object-cover"
+                  sizes="(min-width: 640px) 33vw, 50vw"
+                />
+              </div>
               {index === 0 ? (
                 <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-card/95 px-2 py-0.5 text-[0.68rem] font-semibold">
                   <Star className="h-3 w-3 text-copper" />

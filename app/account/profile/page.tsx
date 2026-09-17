@@ -20,13 +20,29 @@ export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const sessionUser = await requirePageUser("/account/profile");
-  const user = await prisma.user.findUnique({
-    where: { id: sessionUser.id },
-    include: { dealer: true },
-  });
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: sessionUser.id },
+      include: { dealer: true },
+    });
+  } catch (error) {
+    console.error("Failed to load account profile", error);
+    throw new Error("Could not load your profile.");
+  }
 
   if (!user) {
-    return null;
+    return (
+      <div className="space-y-2">
+        <h1 className="text-[clamp(1.5rem,1.1rem+2vw,1.875rem)] font-semibold tracking-tight">
+          Profile
+        </h1>
+        <p className="text-muted-foreground">
+          Your account is signed in, but we could not find a matching profile yet.
+          Refresh this page, or sign out and sign in again.
+        </p>
+      </div>
+    );
   }
 
   return (

@@ -38,7 +38,7 @@ import {
   type VehicleCondition,
 } from "@/lib/vehicle-search";
 
-export const LISTINGS_PAGE_SIZE = 12;
+export const LISTINGS_PAGE_SIZE = 24;
 export const PRICE_MIN_MWK = 0;
 export const PRICE_MAX_MWK = OPEN_ENDED_PRICE;
 export const PRICE_STEP_MWK = 500_000;

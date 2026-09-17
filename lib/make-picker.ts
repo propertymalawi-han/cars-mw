@@ -42,6 +42,7 @@ export type ListingMakeRow = {
   make: string;
   model: string;
   title: string;
+  count?: number;
 };
 
 export function emptyMakeSelection(): MakePickerSelection {
@@ -103,6 +104,7 @@ export function aggregateMakeFacets(rows: ListingMakeRow[]): MakeFacet[] {
     const makeName = row.make.trim();
     const modelName = row.model.trim();
     if (!makeName || !modelName) continue;
+    const n = row.count ?? 1;
 
     const makeKey = makeName.toLowerCase();
     let make = makes.get(makeKey);
@@ -110,7 +112,7 @@ export function aggregateMakeFacets(rows: ListingMakeRow[]): MakeFacet[] {
       make = { make: makeName, count: 0, models: new Map() };
       makes.set(makeKey, make);
     }
-    make.count += 1;
+    make.count += n;
 
     const modelKey = modelName.toLowerCase();
     let model = make.models.get(modelKey);
@@ -118,14 +120,14 @@ export function aggregateMakeFacets(rows: ListingMakeRow[]): MakeFacet[] {
       model = { model: modelName, count: 0, variants: new Map() };
       make.models.set(modelKey, model);
     }
-    model.count += 1;
+    model.count += n;
 
     const variant = variantFromTitle(row.title, makeName, modelName);
     if (variant) {
       const variantKey = variant.toLowerCase();
       const current = model.variants.get(variantKey);
-      if (current) current.count += 1;
-      else model.variants.set(variantKey, { variant, count: 1 });
+      if (current) current.count += n;
+      else model.variants.set(variantKey, { variant, count: n });
     }
   }
 

@@ -16,7 +16,7 @@ class EmailNotVerifiedError extends CredentialsSignin {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  adapter: CarsMwPrismaAdapter(),
+  adapter: process.env.DATABASE_URL ? CarsMwPrismaAdapter() : undefined,
   session: { strategy: "jwt" },
   providers: [
     ...authConfig.providers,
@@ -27,46 +27,54 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const parsed = signInSchema.safeParse(credentials);
-        if (!parsed.success) {
-          throw new InvalidCredentialsError();
-        }
-
-        const supabase = createSupabaseAuthClient();
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: parsed.data.email,
-          password: parsed.data.password,
-        });
-
-        if (error || !data.user) {
-          const message = error?.message?.toLowerCase() ?? "";
-          if (
-            error?.code === "email_not_confirmed" ||
-            message.includes("email not confirmed")
-          ) {
-            throw new EmailNotVerifiedError();
+        try {
+          const parsed = signInSchema.safeParse(credentials);
+          if (!parsed.success) {
+            throw new InvalidCredentialsError();
           }
+
+          const supabase = createSupabaseAuthClient();
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: parsed.data.email,
+            password: parsed.data.password,
+          });
+
+          if (error || !data.user) {
+            const message = error?.message?.toLowerCase() ?? "";
+            if (
+              error?.code === "email_not_confirmed" ||
+              message.includes("email not confirmed")
+            ) {
+              throw new EmailNotVerifiedError();
+            }
+            throw new InvalidCredentialsError();
+          }
+
+          const { data: profile } = await supabase
+            .from("users")
+            .select("id, name, email, account_type, role, avatar_url")
+            .eq("email", parsed.data.email)
+            .maybeSingle();
+
+          const accountType = (profile?.account_type ?? "individual") as AccountType;
+          const role = (profile?.role ?? "user") as UserRole;
+
+          return {
+            id: profile?.id ?? data.user.id,
+            name: profile?.name ?? data.user.user_metadata?.name ?? data.user.email,
+            email: profile?.email ?? data.user.email,
+            image: profile?.avatar_url ?? data.user.user_metadata?.avatar_url,
+            accountType,
+            role,
+            avatarUrl: profile?.avatar_url ?? null,
+          };
+        } catch (error) {
+          if (error instanceof CredentialsSignin) {
+            throw error;
+          }
+          console.error("Credentials sign-in failed", error);
           throw new InvalidCredentialsError();
         }
-
-        const { data: profile } = await supabase
-          .from("users")
-          .select("id, name, email, account_type, role, avatar_url")
-          .eq("email", parsed.data.email)
-          .maybeSingle();
-
-        const accountType = (profile?.account_type ?? "individual") as AccountType;
-        const role = (profile?.role ?? "user") as UserRole;
-
-        return {
-          id: profile?.id ?? data.user.id,
-          name: profile?.name ?? data.user.user_metadata?.name ?? data.user.email,
-          email: profile?.email ?? data.user.email,
-          image: profile?.avatar_url ?? data.user.user_metadata?.avatar_url,
-          accountType,
-          role,
-          avatarUrl: profile?.avatar_url ?? null,
-        };
       },
     }),
   ],

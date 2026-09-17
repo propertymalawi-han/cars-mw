@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -47,14 +48,17 @@ function UserAvatar({
 
   if (src && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt=""
-        className={cn("rounded-full object-cover", className)}
-        referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
-      />
+      <span className={cn("relative inline-block overflow-hidden rounded-full", className)}>
+        <Image
+          src={src}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="40px"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+        />
+      </span>
     );
   }
 

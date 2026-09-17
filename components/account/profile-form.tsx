@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -107,13 +108,16 @@ export function ProfileForm({
 
         <div className="flex items-center gap-4">
           {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt=""
-              className="size-16 rounded-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+            <span className="relative size-16 overflow-hidden rounded-full">
+              <Image
+                src={avatarUrl}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="64px"
+                referrerPolicy="no-referrer"
+              />
+            </span>
           ) : (
             <div className="flex size-16 items-center justify-center rounded-full bg-muted text-lg font-semibold">
               {(form.getValues("name") || "U").slice(0, 1).toUpperCase()}

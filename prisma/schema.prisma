@@ -147,8 +147,10 @@ model Dealer {
 }
 
 model Listing {
-  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title        String
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Sequential public vehicle ID, displayed as CMW-10001
+  vehicleNumber Int            @unique @default(autoincrement()) @map("vehicle_number")
+  title         String
   make         String
   model        String
   year         Int
@@ -177,9 +179,16 @@ model Listing {
   @@index([status, createdAt(sort: Desc)])
   @@index([featuredUntil])
   @@index([city])
+  @@index([make])
+  @@index([bodyType])
   @@index([district])
-  @@index([make, model])
   @@index([price])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, make])
+  @@index([status, bodyType])
+  @@index([status, district])
+  @@index([make, model])
   @@index([sellerId, sellerType])
   @@map("listings")
 }

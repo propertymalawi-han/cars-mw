@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,6 +5,7 @@ import { Clock, MapPin } from "lucide-react";
 import { FavouriteButton } from "@/components/account/favourite-button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatMWK } from "@/lib/currency";
 import { isListingFeatured } from "@/lib/listing-featured";
 import { listingDisplayParts } from "@/lib/listing-title";
@@ -30,6 +29,7 @@ export function ListingCard({
   saved,
   onSavedChange,
   meta,
+  priority = false,
 }: {
   listing: Listing;
   dealer?: Dealer;
@@ -37,6 +37,7 @@ export function ListingCard({
   saved?: boolean;
   onSavedChange?: (saved: boolean) => void;
   meta?: ReactNode;
+  priority?: boolean;
 }) {
   const verified = Boolean(dealer?.verified);
   const featured = isListingFeatured(listing.featuredUntil);
@@ -47,7 +48,7 @@ export function ListingCard({
 
   if (variant === "compact") {
     return (
-      <Card className="overflow-hidden transition-shadow hover:border-border hover:shadow-md">
+      <Card className="overflow-hidden transition-[box-shadow,border-color,transform] duration-page ease-out hover:border-border hover:shadow-md active:scale-[0.98] motion-reduce:transition-shadow motion-reduce:active:scale-100">
         <Link href={`/listings/${listing.id}`} className="flex gap-3 p-3 sm:gap-4 sm:p-4">
           <div className="relative h-[4.75rem] w-[6.75rem] shrink-0 overflow-hidden rounded-md bg-muted sm:h-20 sm:w-32">
             {image ? (
@@ -57,6 +58,7 @@ export function ListingCard({
                 fill
                 className="object-cover"
                 sizes="128px"
+                priority={priority}
               />
             ) : null}
           </div>
@@ -82,7 +84,7 @@ export function ListingCard({
   return (
     <Card
       className={cn(
-        "relative overflow-hidden transition-shadow hover:border-border hover:shadow-md",
+        "relative overflow-hidden transition-[box-shadow,border-color,transform] duration-page ease-out hover:border-border hover:shadow-md active:scale-[0.98] motion-reduce:transition-shadow motion-reduce:active:scale-100",
       )}
     >
       {showSave ? (
@@ -103,6 +105,7 @@ export function ListingCard({
               fill
               className="object-cover"
               sizes="(min-width: 860px) 33vw, (min-width: 640px) 50vw, 100vw"
+              priority={priority}
             />
           ) : null}
           {featured ? (
@@ -152,6 +155,34 @@ export function ListingCard({
           </div>
         </div>
       </Link>
+    </Card>
+  );
+}
+
+export function ListingCardSkeleton({ variant = "grid" }: { variant?: "grid" | "compact" }) {
+  if (variant === "compact") {
+    return (
+      <Card className="overflow-hidden">
+        <div className="flex gap-3 p-3 sm:gap-4 sm:p-4">
+          <Skeleton className="h-[4.75rem] w-[6.75rem] shrink-0 rounded-md sm:h-20 sm:w-32" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <Skeleton className="aspect-[16/9] w-full rounded-none sm:aspect-[16/10]" />
+      <div className="space-y-2 px-4 py-3.5">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
+      </div>
     </Card>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -35,6 +36,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { FormStepper } from "@/components/sell/form-stepper";
 import { PhotoUploader } from "@/components/sell/photo-uploader";
+import { VehicleId } from "@/components/vehicle-id";
 import { formatMWK } from "@/lib/currency";
 import { buildListingTitle } from "@/lib/listing-title";
 import {
@@ -66,10 +68,12 @@ function numberInputValue(value: unknown) {
 export function SellForm({
   defaultValues,
   listingId,
+  vehicleNumber,
   redirectTo,
 }: {
   defaultValues?: Partial<ListingFormInput>;
   listingId?: string;
+  vehicleNumber?: number;
   redirectTo?: string;
 } = {}) {
   const router = useRouter();
@@ -540,6 +544,20 @@ export function SellForm({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {typeof vehicleNumber === "number" ? (
+                  <ReviewSection title="Vehicle ID">
+                    <ReviewRow
+                      label="ID"
+                      value={
+                        <VehicleId
+                          vehicleNumber={vehicleNumber}
+                          className="font-semibold"
+                        />
+                      }
+                    />
+                  </ReviewSection>
+                ) : null}
+
                 <ReviewSection title="Vehicle" onEdit={() => goTo("vehicle")}>
                   <ReviewRow label="Title" value={generatedTitle} />
                   <ReviewRow label="Make" value={values.make} />
@@ -576,13 +594,16 @@ export function SellForm({
                   ) : (
                     <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {values.images.map((url, index) => (
-                        <li key={url} className="overflow-hidden rounded-md border bg-muted">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={url}
-                            alt={`Photo ${index + 1}`}
-                            className="aspect-[16/10] w-full object-cover"
-                          />
+                        <li key={url} className="relative overflow-hidden rounded-md border bg-muted">
+                          <div className="relative aspect-[16/10] w-full">
+                            <Image
+                              src={url}
+                              alt={`Photo ${index + 1}`}
+                              fill
+                              className="object-cover"
+                              sizes="(min-width: 640px) 25vw, 50vw"
+                            />
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -680,23 +701,25 @@ function ReviewSection({
   children,
 }: {
   title: string;
-  onEdit: () => void;
+  onEdit?: () => void;
   children: ReactNode;
 }) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold">{title}</h3>
-        <Button type="button" variant="ghost" size="sm" onClick={onEdit}>
-          Edit
-        </Button>
+        {onEdit ? (
+          <Button type="button" variant="ghost" size="sm" onClick={onEdit}>
+            Edit
+          </Button>
+        ) : null}
       </div>
       <div className="overflow-hidden rounded-lg border">{children}</div>
     </section>
   );
 }
 
-function ReviewRow({ label, value }: { label: string; value?: string }) {
+function ReviewRow({ label, value }: { label: string; value?: ReactNode }) {
   return (
     <div className="grid grid-cols-1 gap-1 border-b px-3 py-2.5 text-sm last:border-b-0 xs:grid-cols-[7.5rem_1fr] xs:gap-3 sm:grid-cols-[8.5rem_1fr] sm:px-4">
       <dt className="font-medium text-muted-foreground">{label}</dt>

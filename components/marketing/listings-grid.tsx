@@ -1,13 +1,10 @@
-import Link from "next/link";
 import { ListingCard } from "@/components/listing-card";
 import { Button } from "@/components/ui/button";
-import { dealerForListing, getDealers, getFeaturedListings } from "@/lib/data";
+import { dealerForListing, getFeaturedListings } from "@/lib/data";
+import Link from "next/link";
 
 export async function ListingsGrid({ bodyType }: { bodyType?: string }) {
-  const [featured, dealers] = await Promise.all([
-    getFeaturedListings(bodyType),
-    getDealers(),
-  ]);
+  const { listings, dealers } = await getFeaturedListings(bodyType);
 
   return (
     <section id="listings" className="scroll-mt-28 pb-16 pt-5">
@@ -25,13 +22,14 @@ export async function ListingsGrid({ bodyType }: { bodyType?: string }) {
             <Link href="/listings">View all listings</Link>
           </Button>
         </div>
-        {featured.length > 0 ? (
+        {listings.length > 0 ? (
           <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 nav:grid-cols-3">
-            {featured.map((listing) => (
+            {listings.map((listing, index) => (
               <ListingCard
                 key={listing.id}
                 listing={listing}
                 dealer={dealerForListing(listing, dealers)}
+                priority={index < 3}
               />
             ))}
           </div>

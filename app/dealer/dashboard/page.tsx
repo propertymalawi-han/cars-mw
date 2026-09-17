@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import nextDynamic from "next/dynamic";
 import { Eye, MessageSquare, ShieldCheck, Store } from "lucide-react";
-import { DealerActivityChart } from "@/components/dealer/activity-chart";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -9,7 +9,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getDealerOverviewStats, requireDealerPage } from "@/lib/dealer";
+
+const DealerActivityChart = nextDynamic(
+  () =>
+    import("@/components/dealer/activity-chart").then(
+      (mod) => mod.DealerActivityChart,
+    ),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[280px] w-full" />,
+  },
+);
 
 export const metadata: Metadata = {
   title: "Dealer overview",
