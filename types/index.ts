@@ -117,6 +117,8 @@ export interface Dealer {
 
 export interface Listing {
   id: string;
+  /** Sequential public vehicle ID, displayed as CMW-10001. */
+  vehicleNumber: number;
   title: string;
   make: string;
   model: string;

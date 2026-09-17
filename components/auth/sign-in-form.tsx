@@ -28,7 +28,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   use_google: "This account uses Google. Continue with Google instead.",
   OAuthAccountNotLinked: "This email is already used with another sign-in method.",
   AccessDenied: "Google sign-in was cancelled or denied.",
-  Configuration: "Sign-in is not configured yet. Try email and password.",
+  Configuration:
+    "Sign-in isn’t configured on this deployment. Add AUTH_SECRET in Vercel and redeploy.",
   Verification: "That verification link is invalid or has expired.",
   Default: "Could not sign in. Try again.",
 };
@@ -38,11 +39,13 @@ export function SignInForm({
   verified,
   error,
   reset,
+  googleEnabled = false,
 }: {
   returnTo: string;
   verified?: boolean;
   error?: string;
   reset?: boolean;
+  googleEnabled?: boolean;
 }) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(
@@ -137,8 +140,12 @@ export function SignInForm({
         </Button>
       ) : null}
 
-      <GoogleSignInButton returnTo={returnTo} />
-      <AuthDivider />
+      {googleEnabled ? (
+        <>
+          <GoogleSignInButton returnTo={returnTo} />
+          <AuthDivider />
+        </>
+      ) : null}
 
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>

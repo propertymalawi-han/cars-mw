@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignUpForm } from "@/components/auth/sign-up-form";
+import { isGoogleAuthEnabled } from "@/lib/auth-env";
 import { safeReturnTo } from "@/lib/return-to";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ type SignUpPageProps = {
 
 export default function SignUpPage({ searchParams }: SignUpPageProps) {
   const returnTo = safeReturnTo(searchParams.returnTo, "/account");
+  const googleEnabled = isGoogleAuthEnabled();
 
   return (
     <AuthShell
@@ -23,9 +25,13 @@ export default function SignUpPage({ searchParams }: SignUpPageProps) {
       returnTo={returnTo}
       wide
       title="Create an account"
-      description="Join CarsMW with Google, or with email. We’ll send a confirmation link before you can sign in."
+      description={
+        googleEnabled
+          ? "Join CarsMW with Google, or with email. We’ll send a confirmation link before you can sign in."
+          : "Join CarsMW with email. We’ll send a confirmation link before you can sign in."
+      }
     >
-      <SignUpForm returnTo={returnTo} />
+      <SignUpForm returnTo={returnTo} googleEnabled={googleEnabled} />
     </AuthShell>
   );
 }

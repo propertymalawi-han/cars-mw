@@ -2,9 +2,49 @@ import type { Dealer as PrismaDealer, Listing as PrismaListing } from "@prisma/c
 import { isPrivateListingPastTtl } from "@/lib/listing-expiry";
 import type { Dealer, Listing, MalawiCity, MalawiDistrict } from "@/types";
 
-export function mapPrismaListing(row: PrismaListing): Listing {
+type ListingMapperInput = Pick<
+  PrismaListing,
+  | "id"
+  | "vehicleNumber"
+  | "title"
+  | "make"
+  | "model"
+  | "year"
+  | "price"
+  | "mileage"
+  | "transmission"
+  | "fuelType"
+  | "bodyType"
+  | "district"
+  | "city"
+  | "images"
+  | "sellerId"
+  | "sellerType"
+  | "status"
+  | "featuredUntil"
+  | "createdAt"
+> & {
+  description?: string;
+};
+
+type DealerMapperInput = Pick<
+  PrismaDealer,
+  | "id"
+  | "name"
+  | "slug"
+  | "logoUrl"
+  | "districts"
+  | "verified"
+  | "phone"
+  | "whatsapp"
+  | "description"
+  | "userId"
+>;
+
+export function mapPrismaListing(row: ListingMapperInput): Listing {
   const listing: Listing = {
     id: row.id,
+    vehicleNumber: row.vehicleNumber,
     title: row.title,
     make: row.make,
     model: row.model,
@@ -17,7 +57,7 @@ export function mapPrismaListing(row: PrismaListing): Listing {
     district: row.district as MalawiDistrict,
     city: row.city as MalawiCity,
     images: row.images ?? [],
-    description: row.description,
+    description: row.description ?? "",
     sellerId: row.sellerId,
     sellerType: row.sellerType,
     status: row.status,
@@ -30,7 +70,7 @@ export function mapPrismaListing(row: PrismaListing): Listing {
   return listing;
 }
 
-export function mapPrismaDealer(row: PrismaDealer): Dealer {
+export function mapPrismaDealer(row: DealerMapperInput): Dealer {
   return {
     id: row.id,
     name: row.name,
@@ -40,13 +80,13 @@ export function mapPrismaDealer(row: PrismaDealer): Dealer {
     verified: row.verified,
     phone: row.phone,
     whatsapp: row.whatsapp,
-    description: row.description,
+    description: row.description ?? "",
     userId: row.userId,
   };
 }
 
 export function dealerFromSeller(
-  seller: { dealer: PrismaDealer | null } | null | undefined,
+  seller: { dealer: DealerMapperInput | null } | null | undefined,
   sellerType: Listing["sellerType"],
 ): Dealer | undefined {
   if (sellerType !== "dealer" || !seller?.dealer) return undefined;

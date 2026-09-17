@@ -4,10 +4,14 @@ import { auth } from "@/auth";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { SignUpForm } from "@/components/auth/sign-up-form";
+import { EditListingSummary } from "@/components/sell/edit-listing-summary";
 import { SellForm } from "@/components/sell/sell-form";
 import { getListingById } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
+import { mapPrismaListing } from "@/lib/prisma-mappers";
 import { getSupabase } from "@/lib/supabase/server";
 import { listingFormDefaults, type ListingFormInput } from "@/lib/validations/listing";
+import type { Listing } from "@/types";
 
 export const metadata: Metadata = {
   title: "Sell your car",
@@ -85,6 +89,7 @@ export default async function SellPage({ searchParams }: SellPageProps) {
   };
   let listingId: string | undefined;
   let editingDraft = false;
+  let editingListing: Listing | undefined;
 
   const { data: dealer } = await getSupabase()
     .from("dealers")
@@ -101,10 +106,20 @@ export default async function SellPage({ searchParams }: SellPageProps) {
   }
 
   if (searchParams.listingId) {
-    const listing = await getListingById(searchParams.listingId);
-    if (listing && listing.sellerId === session.user.id) {
+    const listing = process.env.DATABASE_URL
+      ? await prisma.listing
+          .findFirst({
+            where: { id: searchParams.listingId, sellerId: session.user.id },
+          })
+          .then((row) => (row ? mapPrismaListing(row) : undefined))
+      : await getListingById(searchParams.listingId).then((loaded) =>
+          loaded?.sellerId === session.user.id ? loaded : undefined,
+        );
+
+    if (listing) {
       listingId = listing.id;
       editingDraft = listing.status === "draft";
+      editingListing = listing;
       defaultValues = {
         ...defaultValues,
         make: listing.make,
@@ -143,9 +158,11 @@ export default async function SellPage({ searchParams }: SellPageProps) {
           </Link>
         </p>
       </div>
+      {editingListing ? <EditListingSummary listing={editingListing} /> : null}
       <SellForm
         defaultValues={{ ...listingFormDefaults, ...defaultValues }}
         listingId={listingId}
+        vehicleNumber={editingListing?.vehicleNumber}
         redirectTo={listingsHref}
       />
     </div>

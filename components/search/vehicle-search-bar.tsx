@@ -35,6 +35,8 @@ import {
   type VehicleCategory,
 } from "@/lib/vehicle-search";
 
+const FILTER_COUNT_DEBOUNCE_MS = 300;
+
 type VehicleSearchBarProps = {
   filters?: ListingFilters;
   categoryCounts: CategoryCounts;
@@ -101,7 +103,7 @@ export function VehicleSearchBar({
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
       }
-    }, 280);
+    }, FILTER_COUNT_DEBOUNCE_MS);
 
     return () => {
       window.clearTimeout(timer);
@@ -127,7 +129,7 @@ export function VehicleSearchBar({
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
       }
-    }, 280);
+    }, FILTER_COUNT_DEBOUNCE_MS);
 
     return () => {
       window.clearTimeout(timer);

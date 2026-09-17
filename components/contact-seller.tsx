@@ -9,10 +9,12 @@ export function ContactSeller({
   phone,
   whatsapp,
   listingTitle,
+  vehicleId,
 }: {
   phone: string;
   whatsapp: string;
   listingTitle: string;
+  vehicleId?: string;
 }) {
   const [revealed, setRevealed] = useState(false);
 
@@ -26,7 +28,9 @@ export function ContactSeller({
 
   const chatHref = whatsappHref(
     whatsapp || phone,
-    `Hi, I'm interested in your ${listingTitle} listed on CarsMW.`,
+    vehicleId
+      ? `Hi, I'm interested in your ${listingTitle} (vehicle ID ${vehicleId}) listed on CarsMW.`
+      : `Hi, I'm interested in your ${listingTitle} listed on CarsMW.`,
   );
 
   return (

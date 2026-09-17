@@ -61,6 +61,7 @@ async function main() {
       sellerId: listing.sellerId,
       sellerType: listing.sellerType,
       status: listing.status,
+      vehicleNumber: listing.vehicleNumber,
       featuredUntil: listing.featuredUntil ? new Date(listing.featuredUntil) : null,
       createdAt: new Date(listing.createdAt),
     })),

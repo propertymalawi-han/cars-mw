@@ -52,6 +52,12 @@
     --chart-3: 218 41% 11%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    --motion-duration-page: 200ms;
+    --motion-duration-overlay: 220ms;
+    --motion-duration-overlay-exit: 200ms;
+    --motion-duration-fade: 150ms;
+    --motion-ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
   }
 
   .dark {
@@ -133,5 +139,125 @@
     background: hsl(var(--muted-foreground) / 0.45);
     border-radius: 9999px;
     border: 2px solid hsl(var(--muted));
+  }
+}
+
+@layer components {
+  .route-loading-bar {
+    --route-road-width: 100%;
+    --route-car-width: 1.75rem;
+    --pothole-1: 20%;
+    --pothole-2: 50%;
+    --pothole-3: 80%;
+  }
+
+  .route-loading-car {
+    position: absolute;
+    left: 0;
+    bottom: 5px;
+    z-index: 1;
+    height: 1rem;
+    width: var(--route-car-width);
+    animation: route-car-x 2.4s linear infinite;
+    animation-play-state: paused;
+  }
+
+  .route-loading-bar[data-visible="true"] .route-loading-car,
+  .route-loading-bar[data-visible="true"] .route-loading-car-body {
+    animation-play-state: running;
+  }
+
+  .route-loading-car-body {
+    height: 100%;
+    width: 100%;
+    animation: route-car-bump 2.4s linear infinite;
+    animation-play-state: paused;
+  }
+
+  .route-loading-road {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 5px;
+    overflow: visible;
+    background-image: repeating-linear-gradient(
+      to right,
+      hsl(var(--border)) 0 8px,
+      transparent 8px 13px
+    );
+    background-position: 0 60%;
+    background-repeat: repeat-x;
+    background-size: auto 2px;
+  }
+
+  .route-loading-pothole {
+    position: absolute;
+    bottom: -0.5px;
+    height: 4px;
+    width: 11px;
+    translate: -50% 0;
+    border-radius: 70% 40% 60% 50%;
+    background: hsl(var(--muted-foreground) / 0.55);
+  }
+
+  .route-loading-pothole:nth-child(1) {
+    left: var(--pothole-1);
+    width: 11px;
+    height: 3.5px;
+  }
+
+  .route-loading-pothole:nth-child(2) {
+    left: var(--pothole-2);
+    width: 14px;
+    height: 4.5px;
+    border-radius: 50% 70% 40% 60%;
+    background: hsl(var(--muted-foreground) / 0.7);
+  }
+
+  .route-loading-pothole:nth-child(3) {
+    left: var(--pothole-3);
+    width: 9px;
+    height: 3px;
+    border-radius: 40% 60% 70% 40%;
+    background: hsl(var(--muted-foreground) / 0.45);
+  }
+}
+
+@keyframes route-car-x {
+  from {
+    transform: translateX(calc(-1 * var(--route-car-width)));
+  }
+  to {
+    transform: translateX(var(--route-road-width));
+  }
+}
+
+@keyframes route-car-bump {
+  0%,
+  18%,
+  22%,
+  48%,
+  52%,
+  78%,
+  82%,
+  100% {
+    transform: translateY(0);
+  }
+  20%,
+  50%,
+  80% {
+    transform: translateY(3.5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-loading-car,
+  .route-loading-car-body {
+    animation: none !important;
+  }
+
+  .route-loading-bar[data-visible="true"] .route-loading-car {
+    left: 18%;
   }
 }

@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
+import { isGoogleAuthEnabled } from "@/lib/auth-env";
 import type { AccountType, UserRole } from "@/types";
 
 export const authConfig = {
@@ -9,11 +10,13 @@ export const authConfig = {
     signIn: "/sign-in",
     error: "/sign-in",
   },
-  providers: [
-    Google({
-      allowDangerousEmailAccountLinking: true,
-    }),
-  ],
+  providers: isGoogleAuthEnabled()
+    ? [
+        Google({
+          allowDangerousEmailAccountLinking: true,
+        }),
+      ]
+    : [],
   callbacks: {
     authorized() {
       return true;

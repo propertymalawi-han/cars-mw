@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ListingCard } from "@/components/listing-card";
-import { getDealerBySlug, getListingsByDealer } from "@/lib/data";
-
-export const dynamic = "force-dynamic";
+import { getDealerBySlug, getListingsForSeller } from "@/lib/data";
 
 type DealerPageProps = {
   params: { slug: string };
@@ -34,18 +33,22 @@ export default async function DealerProfilePage({ params }: DealerPageProps) {
     notFound();
   }
 
-  const stock = await getListingsByDealer(dealer.slug);
+  const stock = await getListingsForSeller(dealer.userId);
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-10 px-4 py-8 sm:py-10">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
         {dealer.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={dealer.logoUrl}
-            alt=""
-            className="size-20 rounded-lg border bg-card object-cover"
-          />
+          <div className="relative size-20 overflow-hidden rounded-lg border bg-card">
+            <Image
+              src={dealer.logoUrl}
+              alt={`${dealer.name} logo`}
+              fill
+              className="object-cover"
+              sizes="80px"
+              priority
+            />
+          </div>
         ) : (
           <div className="flex size-20 items-center justify-center rounded-lg border bg-card text-2xl font-semibold">
             {dealer.name.slice(0, 1)}
@@ -88,8 +91,13 @@ export default async function DealerProfilePage({ params }: DealerPageProps) {
         </div>
         {stock.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 nav:grid-cols-3">
-            {stock.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} dealer={dealer} />
+            {stock.map((listing, index) => (
+              <ListingCard
+                key={listing.id}
+                listing={listing}
+                dealer={dealer}
+                priority={index < 3}
+              />
             ))}
           </div>
         ) : (

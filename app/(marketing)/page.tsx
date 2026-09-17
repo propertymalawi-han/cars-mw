@@ -7,8 +7,6 @@ import { LocationGrid } from "@/components/marketing/location-grid";
 import { SellPanel } from "@/components/marketing/sell-panel";
 import { ToolsSection } from "@/components/marketing/tools-section";
 
-export const dynamic = "force-dynamic";
-
 type MarketingPageProps = {
   searchParams: {
     body?: string;

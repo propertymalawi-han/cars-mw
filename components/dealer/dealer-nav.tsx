@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -60,12 +61,15 @@ export function DealerSidebar({
           </p>
           <div className="mt-3 flex items-center gap-3">
             {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt=""
-                className="size-10 rounded-md object-cover ring-1 ring-white/15"
-              />
+              <span className="relative size-10 overflow-hidden rounded-md ring-1 ring-white/15">
+                <Image
+                  src={logoUrl}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="40px"
+                />
+              </span>
             ) : (
               <span className="flex size-10 items-center justify-center rounded-md bg-copper text-sm font-bold text-copper-foreground">
                 {dealerName.slice(0, 1).toUpperCase()}

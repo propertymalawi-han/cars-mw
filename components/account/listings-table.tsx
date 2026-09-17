@@ -30,6 +30,7 @@ import type { AccountListingRow } from "@/lib/account";
 import { LISTING_STATUS_LABEL } from "@/lib/listing-featured";
 import { listingDisplayParts } from "@/lib/listing-title";
 import { cn } from "@/lib/utils";
+import { formatVehicleId } from "@/lib/vehicle-id";
 
 type StatusFilter = "all" | AccountListingRow["status"];
 
@@ -231,7 +232,12 @@ function ListingTableRow({
               <Image src={image} alt="" fill className="object-cover" sizes="64px" />
             ) : null}
           </div>
-          <p className="min-w-0 truncate font-medium">{headline}</p>
+          <div className="min-w-0">
+            <p className="min-w-0 truncate font-medium">{headline}</p>
+            <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+              {formatVehicleId(listing.vehicleNumber)}
+            </p>
+          </div>
         </div>
       </TableCell>
       <TableCell className="whitespace-nowrap font-medium">{formatMWK(listing.price)}</TableCell>
@@ -284,6 +290,9 @@ function MobileListingCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-medium leading-snug">{headline}</p>
+          <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+            {formatVehicleId(listing.vehicleNumber)}
+          </p>
           <p className="mt-0.5 text-sm font-semibold">{formatMWK(listing.price)}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <Badge variant={STATUS_VARIANT[listing.status]}>

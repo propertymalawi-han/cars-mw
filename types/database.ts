@@ -18,6 +18,7 @@ export type Json =
 
 export type ListingRow = {
   id: string;
+  vehicle_number: number;
   title: string;
   make: string;
   model: string;

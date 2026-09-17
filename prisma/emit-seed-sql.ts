@@ -26,7 +26,7 @@ const dealerRows = dealers
 const listingRows = listings
   .map(
     (listing) =>
-      `(${sqlStr(listing.id)}, ${sqlStr(listing.title)}, ${sqlStr(listing.make)}, ${sqlStr(listing.model)}, ${listing.year}, ${listing.price}, ${listing.mileage}, ${sqlStr(listing.transmission)}::"Transmission", ${sqlStr(listing.fuelType)}::"FuelType", ${sqlStr(listing.bodyType)}::"BodyType", ${sqlStr(listing.district)}, ${sqlStr(listing.city)}, ${sqlStrArr(listing.images)}, ${sqlStr(listing.description)}, ${sqlStr(listing.sellerId)}, ${sqlStr(listing.sellerType)}::"SellerType", ${sqlStr(listing.status)}::"ListingStatus", ${listing.featuredUntil ? `${sqlStr(listing.featuredUntil)}::timestamptz` : "NULL"}, ${sqlStr(listing.createdAt)}::timestamptz)`,
+      `(${sqlStr(listing.id)}, ${listing.vehicleNumber}, ${sqlStr(listing.title)}, ${sqlStr(listing.make)}, ${sqlStr(listing.model)}, ${listing.year}, ${listing.price}, ${listing.mileage}, ${sqlStr(listing.transmission)}::"Transmission", ${sqlStr(listing.fuelType)}::"FuelType", ${sqlStr(listing.bodyType)}::"BodyType", ${sqlStr(listing.district)}, ${sqlStr(listing.city)}, ${sqlStrArr(listing.images)}, ${sqlStr(listing.description)}, ${sqlStr(listing.sellerId)}, ${sqlStr(listing.sellerType)}::"SellerType", ${sqlStr(listing.status)}::"ListingStatus", ${listing.featuredUntil ? `${sqlStr(listing.featuredUntil)}::timestamptz` : "NULL"}, ${sqlStr(listing.createdAt)}::timestamptz)`,
   )
   .join(",\n");
 
@@ -40,8 +40,13 @@ ${userRows};
 INSERT INTO dealers (id, name, slug, logo_url, districts, verified, phone, whatsapp, description, user_id) VALUES
 ${dealerRows};
 
-INSERT INTO listings (id, title, make, model, year, price, mileage, transmission, fuel_type, body_type, district, city, images, description, seller_id, seller_type, status, featured_until, created_at) VALUES
+INSERT INTO listings (id, vehicle_number, title, make, model, year, price, mileage, transmission, fuel_type, body_type, district, city, images, description, seller_id, seller_type, status, featured_until, created_at) VALUES
 ${listingRows};
+
+SELECT setval(
+  'listings_vehicle_number_seq',
+  GREATEST((SELECT COALESCE(MAX(vehicle_number), 10000) FROM listings), 10000)
+);
 `;
 
 process.stdout.write(sql);

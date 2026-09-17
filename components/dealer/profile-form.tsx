@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -104,12 +105,15 @@ export function DealerProfileForm({
 
         <div className="flex items-center gap-4">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoUrl}
-              alt=""
-              className="size-16 rounded-md object-cover"
-            />
+            <span className="relative size-16 overflow-hidden rounded-md">
+              <Image
+                src={logoUrl}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="64px"
+              />
+            </span>
           ) : (
             <div className="flex size-16 items-center justify-center rounded-md bg-muted text-lg font-semibold">
               {(form.getValues("name") || "D").slice(0, 1).toUpperCase()}

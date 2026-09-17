@@ -38,6 +38,7 @@ import {
 } from "@/lib/listing-featured";
 import { listingDisplayParts } from "@/lib/listing-title";
 import { cn } from "@/lib/utils";
+import { formatVehicleId } from "@/lib/vehicle-id";
 
 type StatusFilter = "all" | DealerListingRow["status"];
 
@@ -374,6 +375,9 @@ function ListingTableRow({
           </div>
           <div className="min-w-0">
             <p className="truncate font-medium">{headline}</p>
+            <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+              {formatVehicleId(listing.vehicleNumber)}
+            </p>
             {featured ? (
               <Badge variant="copper" className="mt-1 px-1.5 py-0 text-[0.65rem]">
                 Featured
@@ -430,6 +434,9 @@ function MobileListingCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-medium leading-snug">{headline}</p>
+          <p className="mt-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+            {formatVehicleId(listing.vehicleNumber)}
+          </p>
           <p className="mt-0.5 text-sm font-semibold">{formatMWK(listing.price)}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <Badge variant={STATUS_VARIANT[listing.status]}>

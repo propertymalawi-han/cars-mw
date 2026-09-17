@@ -17,23 +17,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { VehicleId } from "@/components/vehicle-id";
 import { auth } from "@/auth";
 import { getEnquiryForListing } from "@/lib/account";
 import { formatMWK } from "@/lib/currency";
 import {
   dealerForListing,
   getDealerForListing,
-  getDealers,
   getListingById,
   getRelatedListings,
   getSellerContact,
 } from "@/lib/data";
 import { listingDisplayParts } from "@/lib/listing-title";
 import { isListingFeatured } from "@/lib/listing-featured";
+import { formatVehicleId } from "@/lib/vehicle-id";
 import { prisma } from "@/lib/prisma";
 import { BODY_TYPE_LABELS } from "@/types";
-
-export const dynamic = "force-dynamic";
 
 type ListingPageProps = {
   params: { id: string };
@@ -61,30 +60,36 @@ export async function generateMetadata({
 }
 
 export default async function ListingDetailPage({ params }: ListingPageProps) {
-  const listing = await getListingById(params.id);
+  const [listing, session] = await Promise.all([getListingById(params.id), auth()]);
 
   if (!listing) {
     notFound();
   }
 
-  const session = await auth();
-  const [dealer, privateSeller, related, dealers, favourite, existingEnquiry] = await Promise.all([
+  const [dealer, privateSeller, related, favourite, existingEnquiry] = await Promise.all([
     getDealerForListing(listing),
     listing.sellerType === "private"
       ? getSellerContact(listing.sellerId)
       : Promise.resolve(undefined),
     getRelatedListings(listing),
-    getDealers(),
     session?.user?.id
-      ? prisma.favourite.findUnique({
-          where: {
-            userId_listingId: { userId: session.user.id, listingId: listing.id },
-          },
-          select: { id: true },
-        })
+      ? prisma.favourite
+          .findUnique({
+            where: {
+              userId_listingId: { userId: session.user.id, listingId: listing.id },
+            },
+            select: { id: true },
+          })
+          .catch((error) => {
+            console.error("Failed to load favourite", error);
+            return null;
+          })
       : Promise.resolve(null),
     session?.user?.id
-      ? getEnquiryForListing(session.user.id, listing.id)
+      ? getEnquiryForListing(session.user.id, listing.id).catch((error) => {
+          console.error("Failed to load listing enquiry", error);
+          return null;
+        })
       : Promise.resolve(null),
   ]);
 
@@ -94,6 +99,7 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
   const { headline, subtitle } = listingDisplayParts(listing);
   const displayTitle = subtitle ? `${headline} ${subtitle}` : headline;
   const specs = [
+    { label: "Vehicle ID", value: formatVehicleId(listing.vehicleNumber) },
     { label: "Make", value: listing.make },
     { label: "Model", value: listing.model },
     { label: "Year", value: String(listing.year) },
@@ -138,6 +144,9 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
                 <FavouriteButton listingId={listing.id} saved={Boolean(favourite)} />
               ) : null}
             </div>
+            <p className="text-sm text-muted-foreground">
+              Vehicle ID <VehicleId vehicleNumber={listing.vehicleNumber} className="font-medium text-foreground" />
+            </p>
             {subtitle ? (
               <p className="text-base text-muted-foreground">{subtitle}</p>
             ) : null}
@@ -205,6 +214,7 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
                 phone={sellerPhone}
                 whatsapp={sellerWhatsapp}
                 listingTitle={displayTitle}
+                vehicleId={formatVehicleId(listing.vehicleNumber)}
               />
               {session?.user?.id !== listing.sellerId && listing.status === "active" ? (
                 <>
@@ -221,7 +231,7 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
         </aside>
       </div>
 
-      {related.length > 0 ? (
+      {related.listings.length > 0 ? (
         <section className="space-y-5">
           <div>
             <h2 className="text-[clamp(1.15rem,0.95rem+1vw,1.35rem)] font-bold tracking-tight">
@@ -232,11 +242,11 @@ export default async function ListingDetailPage({ params }: ListingPageProps) {
             </p>
           </div>
           <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 nav:grid-cols-3">
-            {related.map((item) => (
+            {related.listings.map((item) => (
               <ListingCard
                 key={item.id}
                 listing={item}
-                dealer={dealerForListing(item, dealers)}
+                dealer={dealerForListing(item, related.dealers)}
               />
             ))}
           </div>

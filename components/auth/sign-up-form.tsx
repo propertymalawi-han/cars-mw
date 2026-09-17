@@ -48,8 +48,10 @@ const signUpDefaults: SignUpInput = {
 
 export function SignUpForm({
   returnTo,
+  googleEnabled = false,
 }: {
   returnTo: string;
+  googleEnabled?: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<"choose" | "details">("choose");
@@ -124,8 +126,12 @@ export function SignUpForm({
   if (step === "choose") {
     return (
       <div className="space-y-5">
-        <GoogleSignInButton returnTo={returnTo} />
-        <AuthDivider />
+        {googleEnabled ? (
+          <>
+            <GoogleSignInButton returnTo={returnTo} />
+            <AuthDivider />
+          </>
+        ) : null}
         <RadioGroup
           className="grid gap-3 sm:grid-cols-2"
           value={selectedType ?? ""}
@@ -189,7 +195,7 @@ export function SignUpForm({
         </p>
       ) : null}
 
-      {accountType === "individual" ? (
+      {googleEnabled && accountType === "individual" ? (
         <>
           <GoogleSignInButton returnTo={returnTo} />
           <AuthDivider />
