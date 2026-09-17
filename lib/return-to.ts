@@ -8,6 +8,20 @@ export function getAppUrl() {
   return url.replace(/\/$/, "");
 }
 
+export function getRequestOrigin(request: Request) {
+  const url = new URL(request.url);
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (forwardedHost) {
+    return `${forwardedProto || url.protocol.replace(":", "")}://${forwardedHost}`;
+  }
+  return url.origin;
+}
+
+export function getEmailRedirectTo(request: Request, path = "/auth/callback") {
+  return `${getRequestOrigin(request)}${path}`;
+}
+
 export function safeReturnTo(value: string | string[] | undefined | null, fallback = "/") {
   const candidate = Array.isArray(value) ? value[0] : value;
   if (!candidate) return fallback;

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { uniqueDealerSlug } from "@/lib/dealer-slug";
-import { sendVerificationEmail } from "@/lib/email-verification";
-import { hashPassword } from "@/lib/password";
-import { prisma } from "@/lib/prisma";
+import { getEmailRedirectTo } from "@/lib/return-to";
+import { createSupabaseAuthClient, getSupabase } from "@/lib/supabase/server";
+import type { Json } from "@/types/database";
 import { signUpSchema } from "@/lib/validations/auth";
 
 export const runtime = "nodejs";
@@ -23,63 +22,67 @@ export async function POST(request: Request) {
     }
 
     const input = parsed.data;
-    const passwordHash = await hashPassword(input.password);
-    const existing = await prisma.user.findUnique({
-      where: { email: input.email },
-      include: { dealer: true },
+    const supabase = createSupabaseAuthClient();
+    const { data, error } = await supabase.auth.signUp({
+      email: input.email,
+      password: input.password,
+      options: {
+        emailRedirectTo: getEmailRedirectTo(request),
+        data: {
+          name: input.name,
+          phone: input.phone,
+          account_type: input.accountType,
+        },
+      },
     });
 
-    if (existing?.passwordHash) {
+    if (error) {
+      const message = error.message.toLowerCase();
+      if (
+        error.code === "user_already_exists" ||
+        message.includes("already registered") ||
+        message.includes("already been registered")
+      ) {
+        return NextResponse.json(
+          { error: "An account with this email already exists. Sign in instead." },
+          { status: 409 },
+        );
+      }
+
+      console.error("Failed to register", error);
+      return NextResponse.json(
+        { error: "Could not create your account. Try again." },
+        { status: 500 },
+      );
+    }
+
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
       return NextResponse.json(
         { error: "An account with this email already exists. Sign in instead." },
         { status: 409 },
       );
     }
 
-    const dealerSlug =
-      input.accountType === "dealer" && !existing?.dealer
-        ? await uniqueDealerSlug(input.dealerName)
-        : null;
-
-    await prisma.$transaction(async (tx) => {
-      const user = existing
-        ? await tx.user.update({
-            where: { id: existing.id },
-            data: {
-              name: input.name,
-              phone: input.phone || existing.phone,
-              passwordHash,
-              accountType: input.accountType === "dealer" ? "dealer" : existing.accountType,
-              role: input.accountType === "dealer" ? "dealer" : existing.role,
-            },
-          })
-        : await tx.user.create({
-            data: {
-              name: input.name,
-              email: input.email,
-              phone: input.phone || null,
-              passwordHash,
-              accountType: input.accountType,
-              role: input.accountType === "dealer" ? "dealer" : "user",
-            },
-          });
-
-      if (input.accountType === "dealer" && dealerSlug && !existing?.dealer) {
-        await tx.dealer.create({
-          data: {
-            name: input.dealerName,
-            slug: dealerSlug,
-            phone: input.dealerPhone,
-            whatsapp: input.whatsapp,
-            districts: [...input.districts],
-            verified: false,
-            userId: user.id,
-          },
-        });
-      }
+    const { error: profileError } = await getSupabase().rpc("register_account", {
+      payload: {
+        email: input.email,
+        name: input.name,
+        phone: input.phone,
+        accountType: input.accountType,
+        dealerName: input.dealerName,
+        dealerPhone: input.dealerPhone,
+        whatsapp: input.whatsapp,
+        districts: input.districts,
+      } as Json,
     });
 
-    await sendVerificationEmail(input.email, input.name);
+    if (profileError) {
+      console.error("Failed to save account profile", profileError);
+      return NextResponse.json(
+        { error: "Could not create your account. Try again." },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

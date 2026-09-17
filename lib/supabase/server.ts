@@ -7,7 +7,7 @@ const FALLBACK_SUPABASE_URL = "https://mxufzhxqxchufhyzsimt.supabase.co";
 const FALLBACK_SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14dWZ6aHhxeGNodWZoeXpzaW10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0Nzg3NjYsImV4cCI6MjEwNTA1NDc2Nn0.HDVDaIjK2AdijcCYsrAf1F92ukvWAUkJQs7bt5XLtIE";
 
-export function getSupabase(): SupabaseClient<Database> {
+export function getSupabaseAuthConfig() {
   const url =
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.SUPABASE_URL ||
@@ -23,6 +23,12 @@ export function getSupabase(): SupabaseClient<Database> {
     );
   }
 
+  return { url, anonKey };
+}
+
+export function getSupabase(): SupabaseClient<Database> {
+  const { url, anonKey } = getSupabaseAuthConfig();
+
   if (!client) {
     client = createClient<Database>(url, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -33,4 +39,11 @@ export function getSupabase(): SupabaseClient<Database> {
   }
 
   return client;
+}
+
+export function createSupabaseAuthClient() {
+  const { url, anonKey } = getSupabaseAuthConfig();
+  return createClient<Database>(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 }

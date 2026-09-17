@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
+import { safeReturnTo, withReturnTo } from "@/lib/return-to";
 
 export const metadata: Metadata = {
   title: "Check your email",
@@ -10,10 +11,13 @@ export const metadata: Metadata = {
 type VerifyEmailSentPageProps = {
   searchParams: {
     email?: string;
+    returnTo?: string;
   };
 };
 
 export default function VerifyEmailSentPage({ searchParams }: VerifyEmailSentPageProps) {
+  const returnTo = safeReturnTo(searchParams.returnTo, "/account");
+
   return (
     <AuthShell
       title="Check your email"
@@ -32,7 +36,7 @@ export default function VerifyEmailSentPage({ searchParams }: VerifyEmailSentPag
           Didn&apos;t get it? Check spam, or try signing in to resend the email.
         </p>
         <Button variant="copper" className="w-full" asChild>
-          <Link href="/sign-in">Back to sign in</Link>
+          <Link href={withReturnTo("/sign-in", returnTo)}>Back to sign in</Link>
         </Button>
       </div>
     </AuthShell>

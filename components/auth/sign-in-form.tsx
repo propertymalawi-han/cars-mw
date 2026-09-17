@@ -35,13 +35,11 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 export function SignInForm({
   returnTo,
-  googleEnabled,
   verified,
   error,
   reset,
 }: {
   returnTo: string;
-  googleEnabled: boolean;
   verified?: boolean;
   error?: string;
   reset?: boolean;
@@ -139,12 +137,8 @@ export function SignInForm({
         </Button>
       ) : null}
 
-      {googleEnabled ? (
-        <>
-          <GoogleSignInButton returnTo={returnTo} />
-          <AuthDivider />
-        </>
-      ) : null}
+      <GoogleSignInButton returnTo={returnTo} />
+      <AuthDivider />
 
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>

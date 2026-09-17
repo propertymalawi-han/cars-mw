@@ -2,10 +2,6 @@ import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import type { AccountType, UserRole } from "@/types";
 
-const googleConfigured = Boolean(
-  process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
-);
-
 export const authConfig = {
   trustHost: true,
   session: { strategy: "jwt" },
@@ -13,13 +9,11 @@ export const authConfig = {
     signIn: "/sign-in",
     error: "/sign-in",
   },
-  providers: googleConfigured
-    ? [
-        Google({
-          allowDangerousEmailAccountLinking: true,
-        }),
-      ]
-    : [],
+  providers: [
+    Google({
+      allowDangerousEmailAccountLinking: true,
+    }),
+  ],
   callbacks: {
     authorized() {
       return true;
@@ -44,4 +38,3 @@ export const authConfig = {
     },
   },
 } satisfies NextAuthConfig;
-

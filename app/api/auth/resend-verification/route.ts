@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { sendVerificationEmail } from "@/lib/email-verification";
-import { prisma } from "@/lib/prisma";
+import { createSupabaseAuthClient } from "@/lib/supabase/server";
+import { getEmailRedirectTo } from "@/lib/return-to";
 import { resendVerificationSchema } from "@/lib/validations/auth";
 
 export const runtime = "nodejs";
@@ -14,13 +14,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: parsed.data.email },
-      select: { name: true, email: true, emailVerified: true, passwordHash: true },
+    const supabase = createSupabaseAuthClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: parsed.data.email,
+      options: { emailRedirectTo: getEmailRedirectTo(request) },
     });
 
-    if (user && !user.emailVerified && user.passwordHash) {
-      await sendVerificationEmail(user.email, user.name);
+    if (error) {
+      console.error("Failed to resend verification email", error);
     }
 
     return NextResponse.json({ ok: true });
