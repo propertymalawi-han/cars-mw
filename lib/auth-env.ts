@@ -5,3 +5,9 @@ export function isGoogleAuthEnabled() {
       process.env.DATABASE_URL,
   );
 }
+
+export function isConfiguredAdminEmail(email?: string | null) {
+  const configured = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  if (!configured || !email) return false;
+  return email.trim().toLowerCase() === configured;
+}

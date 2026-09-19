@@ -12,6 +12,12 @@ import {
 import { principalFromMonthlyPayment } from "@/lib/finance";
 import { prisma } from "@/lib/prisma";
 import { dealerFromSeller, mapPrismaDealer, mapPrismaListing } from "@/lib/prisma-mappers";
+import { dealerForListing } from "@/lib/listing-dealers";
+import {
+  HOME_FEATURED_TAB_IDS,
+  type FeaturedListingsResult,
+  type HomeFeaturedSections,
+} from "@/lib/home-featured";
 import type { DealerRow, ListingRow } from "@/types/database";
 import type {
   BodyType,
@@ -20,12 +26,18 @@ import type {
   MalawiCity,
   MalawiDistrict,
 } from "@/types";
-import { BODY_TYPES } from "@/types";
+import { BODY_TYPES, COMMON_MAKES } from "@/types";
 import {
   aggregateMakeFacets,
+  applyMakePopularity,
   type ListingMakeRow,
   type MakeFacet,
 } from "@/lib/make-picker";
+import { slugify } from "@/lib/slug";
+import {
+  compareVehicleMakes,
+  type VehicleMakeOption,
+} from "@/lib/vehicle-makes";
 import {
   emptyCategoryCounts,
   type CategoryCounts,
@@ -34,12 +46,14 @@ import {
   isPrivateListingPastTtl,
   privateListingFreshnessOrFilter,
 } from "@/lib/listing-expiry";
+import { DEALERS_CACHE_TAG, LISTINGS_CACHE_TAG } from "@/lib/listings-cache";
 import {
   activeListingWhere,
   dealerCardSelect,
   featuredListingWhere,
   LISTING_CACHE_REVALIDATE_SECONDS,
   listingCardSelect,
+  listingDetailSelect,
   listingFilterWhere,
   regularListingWhere,
   resolvedBodyTypes,
@@ -67,6 +81,8 @@ function mapListing(row: Omit<ListingRow, "description"> & { description?: strin
     sellerType: row.seller_type,
     status: row.status,
     featuredUntil: row.featured_until,
+    mutedReason: row.muted_reason ?? null,
+    deletedAt: row.deleted_at ?? null,
     createdAt: row.created_at,
   };
 }
@@ -115,10 +131,7 @@ function dealersFromCardRows(rows: ListingCardRow[]): Dealer[] {
   return Array.from(byId.values());
 }
 
-export function dealerForListing(listing: Listing, dealers: Dealer[]) {
-  if (listing.sellerType !== "dealer") return undefined;
-  return dealers.find((dealer) => dealer.userId === listing.sellerId);
-}
+export { dealerForListing };
 
 async function loadDealers(): Promise<Dealer[]> {
   if (usePrisma()) {
@@ -140,9 +153,10 @@ async function loadDealers(): Promise<Dealer[]> {
 
 export const getDealers = unstable_cache(loadDealers, ["dealers"], {
   revalidate: LISTING_CACHE_REVALIDATE_SECONDS,
+  tags: [DEALERS_CACHE_TAG],
 });
 
-export const getDealerBySlug = cache(async (slug: string): Promise<Dealer | undefined> => {
+async function loadDealerBySlug(slug: string): Promise<Dealer | undefined> {
   if (usePrisma()) {
     const row = await prisma.dealer.findUnique({
       where: { slug },
@@ -159,14 +173,20 @@ export const getDealerBySlug = cache(async (slug: string): Promise<Dealer | unde
 
   throwIfError("Failed to load dealer", error);
   return data ? mapDealer(data) : undefined;
-});
+}
 
-export const getDealerForListing = cache(async (listing: Listing): Promise<Dealer | undefined> => {
-  if (listing.sellerType !== "dealer") return undefined;
+const loadCachedDealerBySlug = unstable_cache(
+  loadDealerBySlug,
+  ["dealer-by-slug"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [DEALERS_CACHE_TAG] },
+);
 
+export const getDealerBySlug = cache((slug: string) => loadCachedDealerBySlug(slug));
+
+async function loadDealerByUserId(userId: string): Promise<Dealer | undefined> {
   if (usePrisma()) {
     const row = await prisma.dealer.findUnique({
-      where: { userId: listing.sellerId },
+      where: { userId },
       select: dealerCardSelect,
     });
     return row ? mapPrismaDealer(row) : undefined;
@@ -175,17 +195,33 @@ export const getDealerForListing = cache(async (listing: Listing): Promise<Deale
   const { data, error } = await getSupabase()
     .from("dealers")
     .select("id, name, slug, logo_url, districts, verified, phone, whatsapp, description, user_id")
-    .eq("user_id", listing.sellerId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   throwIfError("Failed to load listing dealer", error);
   return data ? mapDealer(data) : undefined;
+}
+
+const loadCachedDealerByUserId = unstable_cache(
+  loadDealerByUserId,
+  ["dealer-by-user"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [DEALERS_CACHE_TAG] },
+);
+
+export const getDealerForListing = cache(async (listing: Listing): Promise<Dealer | undefined> => {
+  if (listing.sellerType !== "dealer") return undefined;
+  return loadCachedDealerByUserId(listing.sellerId);
 });
 
-export const getListingById = cache(async (id: string): Promise<Listing | undefined> => {
+async function loadListingById(id: string): Promise<Listing | undefined> {
   if (usePrisma()) {
-    const row = await prisma.listing.findUnique({ where: { id } });
-    if (!row || row.status === "draft") return undefined;
+    const row = await prisma.listing.findUnique({
+      where: { id },
+      select: listingDetailSelect,
+    });
+    if (!row || row.status === "draft" || row.status === "muted" || row.deletedAt) {
+      return undefined;
+    }
     const listing = mapPrismaListing(row);
     if (isPrivateListingPastTtl(listing)) {
       listing.status = "expired";
@@ -207,9 +243,17 @@ export const getListingById = cache(async (id: string): Promise<Listing | undefi
     listing.status = "expired";
   }
   return listing;
-});
+}
 
-export async function getSellerContact(
+const loadCachedListingById = unstable_cache(
+  loadListingById,
+  ["listing-by-id"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
+);
+
+export const getListingById = cache((id: string) => loadCachedListingById(id));
+
+async function loadSellerContact(
   id: string,
 ): Promise<{ name: string; phone: string | null } | undefined> {
   if (usePrisma()) {
@@ -230,10 +274,21 @@ export async function getSellerContact(
   return data ?? undefined;
 }
 
-export async function getRelatedListings(
-  listing: Listing,
-  limit = 3,
+const loadCachedSellerContact = unstable_cache(
+  loadSellerContact,
+  ["seller-contact"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
+);
+
+export const getSellerContact = cache((id: string) => loadCachedSellerContact(id));
+
+async function loadRelatedListings(
+  listingId: string,
+  make: string,
+  district: string,
+  limit: number,
 ): Promise<{ listings: Listing[]; dealers: Dealer[] }> {
+  const listing = { id: listingId, make, district } as Pick<Listing, "id" | "make" | "district">;
   if (usePrisma()) {
     const rows = await prisma.listing.findMany({
       where: {
@@ -244,11 +299,14 @@ export async function getRelatedListings(
         ],
       },
       orderBy: { createdAt: "desc" },
-      take: 12,
+      take: Math.max(limit * 2, 6),
       select: listingCardSelect,
     });
     const ranked = rows
-      .map((row) => ({ row, score: relatedScore(listing, mapPrismaListing(row)) }))
+      .map((row) => ({
+        row,
+        score: relatedScore(listing, mapPrismaListing(row)),
+      }))
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map((item) => item.row);
@@ -268,7 +326,7 @@ export async function getRelatedListings(
     .neq("id", listing.id)
     .or(`make.eq.${listing.make},district.eq.${listing.district}`)
     .order("created_at", { ascending: false })
-    .limit(12);
+    .limit(Math.max(limit * 2, 6));
 
   throwIfError("Failed to load related listings", error);
 
@@ -279,7 +337,23 @@ export async function getRelatedListings(
   return { listings, dealers: [] };
 }
 
-function relatedScore(current: Listing, candidate: Listing) {
+const loadCachedRelatedListings = unstable_cache(
+  loadRelatedListings,
+  ["related-listings"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
+);
+
+export function getRelatedListings(
+  listing: Listing,
+  limit = 3,
+): Promise<{ listings: Listing[]; dealers: Dealer[] }> {
+  return loadCachedRelatedListings(listing.id, listing.make, listing.district, limit);
+}
+
+function relatedScore(
+  current: Pick<Listing, "make" | "district">,
+  candidate: Pick<Listing, "make" | "district">,
+) {
   return (
     (candidate.make === current.make ? 2 : 0) +
     (candidate.district === current.district ? 1 : 0)
@@ -292,7 +366,7 @@ export async function getListingsByDealer(slug: string): Promise<Listing[]> {
   return getListingsForSeller(dealer.userId);
 }
 
-export async function getListingsForSeller(sellerId: string): Promise<Listing[]> {
+async function loadListingsForSeller(sellerId: string): Promise<Listing[]> {
   if (usePrisma()) {
     const now = new Date();
     const rows = await prisma.listing.findMany({
@@ -321,10 +395,17 @@ export async function getListingsForSeller(sellerId: string): Promise<Listing[]>
   return sortFeaturedFirst((data ?? []).map(mapListing), now);
 }
 
-export async function getFeaturedListings(bodyType?: string): Promise<{
-  listings: Listing[];
-  dealers: Dealer[];
-}> {
+const loadCachedListingsForSeller = unstable_cache(
+  loadListingsForSeller,
+  ["listings-for-seller"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
+);
+
+export function getListingsForSeller(sellerId: string): Promise<Listing[]> {
+  return loadCachedListingsForSeller(sellerId);
+}
+
+async function loadFeaturedListings(bodyType?: string): Promise<FeaturedListingsResult> {
   const selectedBody = asBodyType(bodyType);
   const limit = 6;
 
@@ -414,9 +495,157 @@ export async function getFeaturedListings(bodyType?: string): Promise<{
   return { listings: featured, dealers: [] };
 }
 
+const loadCachedFeaturedListings = unstable_cache(
+  async (bodyType: string) => loadFeaturedListings(bodyType || undefined),
+  ["featured-listings"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
+);
+
+export function getFeaturedListings(bodyType?: string): Promise<FeaturedListingsResult> {
+  return loadCachedFeaturedListings(asBodyType(bodyType) ?? "");
+}
+
+function featuredSectionsFromPool(
+  listings: Listing[],
+  dealers: Dealer[],
+  limit = 6,
+): HomeFeaturedSections {
+  const pick = (body?: string): FeaturedListingsResult => {
+    const filtered = body
+      ? listings.filter((listing) => listing.bodyType === body)
+      : listings;
+    const picked = filtered.slice(0, limit);
+    const sellerIds = new Set(picked.map((listing) => listing.sellerId));
+    return {
+      listings: picked,
+      dealers: dealers.filter((dealer) => sellerIds.has(dealer.userId)),
+    };
+  };
+
+  return Object.fromEntries(
+    HOME_FEATURED_TAB_IDS.map((id) => [id, pick(id === "all" ? undefined : id)]),
+  ) as HomeFeaturedSections;
+}
+
+async function loadHomeFeaturedPool(): Promise<HomeFeaturedSections> {
+  const limit = 6;
+
+  if (usePrisma()) {
+    const now = new Date();
+    const [featuredRows, recentRows] = await Promise.all([
+      prisma.listing.findMany({
+        where: { AND: [activeListingWhere(now), { featuredUntil: { gt: now } }] },
+        orderBy: { featuredUntil: "desc" },
+        take: 48,
+        select: listingCardSelect,
+      }),
+      prisma.listing.findMany({
+        where: activeListingWhere(now),
+        orderBy: { createdAt: "desc" },
+        take: 80,
+        select: listingCardSelect,
+      }),
+    ]);
+
+    const merged: ListingCardRow[] = [...featuredRows];
+    const seen = new Set(featuredRows.map((row) => row.id));
+    for (const row of recentRows) {
+      if (seen.has(row.id)) continue;
+      merged.push(row);
+    }
+    return featuredSectionsFromPool(
+      listingsFromCardRows(merged),
+      dealersFromCardRows(merged),
+      limit,
+    );
+  }
+
+  const now = new Date().toISOString();
+  const [featuredResult, recentResult] = await Promise.all([
+    getSupabase()
+      .from("listings")
+      .select(
+        "id, vehicle_number, title, make, model, year, price, mileage, transmission, fuel_type, body_type, district, city, images, seller_id, seller_type, status, featured_until, created_at",
+      )
+      .eq("status", "active")
+      .or(privateListingFreshnessOrFilter(new Date(now)))
+      .gt("featured_until", now)
+      .order("featured_until", { ascending: false })
+      .limit(48),
+    getSupabase()
+      .from("listings")
+      .select(
+        "id, vehicle_number, title, make, model, year, price, mileage, transmission, fuel_type, body_type, district, city, images, seller_id, seller_type, status, featured_until, created_at",
+      )
+      .eq("status", "active")
+      .or(privateListingFreshnessOrFilter(new Date(now)))
+      .order("created_at", { ascending: false })
+      .limit(80),
+  ]);
+  throwIfError("Failed to load featured listings", featuredResult.error);
+  throwIfError("Failed to load featured listings", recentResult.error);
+
+  const featured = (featuredResult.data ?? []).map(mapListing);
+  const seen = new Set(featured.map((listing) => listing.id));
+  const merged = [...featured];
+  for (const listing of (recentResult.data ?? []).map(mapListing)) {
+    if (seen.has(listing.id)) continue;
+    merged.push(listing);
+  }
+  return featuredSectionsFromPool(merged, [], limit);
+}
+
+const loadHomeFeaturedSections = unstable_cache(
+  loadHomeFeaturedPool,
+  ["home-featured-sections"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
+);
+
+export function getHomeFeaturedSections(): Promise<HomeFeaturedSections> {
+  return loadHomeFeaturedSections();
+}
+
 export async function getMakes(): Promise<string[]> {
   const facets = await getMakeModelFacets(defaultListingFilters());
   return facets.map((facet) => facet.make);
+}
+
+function fallbackVehicleMakes(): VehicleMakeOption[] {
+  return COMMON_MAKES.map((name, index) => ({
+    name,
+    slug: slugify(name, "make"),
+    isPopular: true,
+    sortOrder: index + 1,
+  }));
+}
+
+export async function getVehicleMakes(): Promise<VehicleMakeOption[]> {
+  if (!usePrisma()) return fallbackVehicleMakes();
+
+  const { restoreExpiredCatalogMutes } = await import("@/lib/catalog-status");
+  await restoreExpiredCatalogMutes();
+
+  const rows = await prisma.make.findMany({
+    where: { status: "active" },
+    select: { name: true, slug: true, isPopular: true, sortOrder: true },
+  });
+  if (rows.length === 0) return fallbackVehicleMakes();
+
+  return rows
+    .map((row) => ({
+      name: row.name,
+      slug: row.slug,
+      isPopular: row.isPopular,
+      sortOrder: row.sortOrder,
+    }))
+    .sort(compareVehicleMakes);
+}
+
+async function loadMakeCatalog() {
+  if (!usePrisma()) return [];
+  return prisma.make.findMany({
+    select: { name: true, isPopular: true, sortOrder: true },
+  });
 }
 
 async function loadMakeModelFacets(filters: ListingFilters): Promise<MakeFacet[]> {
@@ -425,18 +654,32 @@ async function loadMakeModelFacets(filters: ListingFilters): Promise<MakeFacet[]
   if (usePrisma()) {
     const where = listingFilterWhere(filters);
     if (!where) return [];
-    const rows = await prisma.listing.groupBy({
-      by: ["make", "model", "title"],
-      where,
-      _count: { _all: true },
-    });
-    return aggregateMakeFacets(
-      rows.map((row) => ({
-        make: row.make,
-        model: row.model,
-        title: row.title,
-        count: row._count._all,
-      })),
+    const [rows, catalog] = await Promise.all([
+      prisma.listing.groupBy({
+        by: ["make", "model", "title"],
+        where,
+        _count: { _all: true },
+      }),
+      loadMakeCatalog(),
+    ]);
+    const { excludeMutedMakeFacets, loadMutedMakeModelNames } = await import(
+      "@/lib/catalog-status"
+    );
+    const { mutedMakes, mutedModels } = await loadMutedMakeModelNames();
+    return excludeMutedMakeFacets(
+      applyMakePopularity(
+        aggregateMakeFacets(
+          rows.map((row) => ({
+            make: row.make,
+            model: row.model,
+            title: row.title,
+            count: row._count._all,
+          })),
+        ),
+        catalog,
+      ),
+      mutedMakes,
+      mutedModels,
     );
   }
 
@@ -469,7 +712,7 @@ async function loadMakeModelFacets(filters: ListingFilters): Promise<MakeFacet[]
     from += FACET_PAGE_SIZE;
   }
 
-  return aggregateMakeFacets(rows);
+  return applyMakePopularity(aggregateMakeFacets(rows), await loadMakeCatalog());
 }
 
 const loadCachedMakeModelFacets = unstable_cache(
@@ -477,11 +720,13 @@ const loadCachedMakeModelFacets = unstable_cache(
     const filters = parseListingSearchParams(Object.fromEntries(new URLSearchParams(key)));
     return loadMakeModelFacets(filters);
   },
-  ["make-model-facets"],
-  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS },
+  ["make-model-facets-v2"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
 );
 
-export function getMakeModelFacets(filters: ListingFilters): Promise<MakeFacet[]> {
+export async function getMakeModelFacets(filters: ListingFilters): Promise<MakeFacet[]> {
+  const { restoreExpiredCatalogMutes } = await import("@/lib/catalog-status");
+  await restoreExpiredCatalogMutes();
   return loadCachedMakeModelFacets(facetFiltersKey(filters));
 }
 
@@ -640,7 +885,7 @@ const loadCachedListingCount = unstable_cache(
     return loadListingCount(filters);
   },
   ["listing-count"],
-  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS },
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
 );
 
 export function countListings(filters: ListingFilters): Promise<number> {
@@ -655,6 +900,7 @@ async function loadCategoryCounts(): Promise<CategoryCounts> {
 
 export const getCategoryCounts = unstable_cache(loadCategoryCounts, ["category-counts"], {
   revalidate: LISTING_CACHE_REVALIDATE_SECONDS,
+  tags: [LISTINGS_CACHE_TAG],
 });
 
 export type DistrictCount = {
@@ -691,6 +937,7 @@ async function loadDistrictCounts(): Promise<DistrictCount[]> {
 
 export const getDistrictCounts = unstable_cache(loadDistrictCounts, ["district-counts"], {
   revalidate: LISTING_CACHE_REVALIDATE_SECONDS,
+  tags: [LISTINGS_CACHE_TAG],
 });
 
 function sortFeaturedFirst(listings: Listing[], nowIso: string) {
@@ -734,6 +981,23 @@ async function searchListingSlice(
   return { listings: (data ?? []).map(mapListing), count: count ?? 0 };
 }
 
+const loadCachedSearchSplitCounts = unstable_cache(
+  async (key: string) => {
+    const filters = parseListingSearchParams(Object.fromEntries(new URLSearchParams(key)));
+    const now = new Date();
+    const featuredWhere = featuredListingWhere(filters, now);
+    const regularWhere = regularListingWhere(filters, now);
+    if (!featuredWhere || !regularWhere) return { featuredCount: 0, regularCount: 0 };
+    const [featuredCount, regularCount] = await Promise.all([
+      prisma.listing.count({ where: featuredWhere }),
+      prisma.listing.count({ where: regularWhere }),
+    ]);
+    return { featuredCount, regularCount };
+  },
+  ["search-split-counts"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
+);
+
 async function searchListingsPrisma(filters: ListingFilters): Promise<ListingSearchResult> {
   const pageSize = LISTINGS_PAGE_SIZE;
   const page = filters.page;
@@ -743,42 +1007,7 @@ async function searchListingsPrisma(filters: ListingFilters): Promise<ListingSea
   const regularWhere = regularListingWhere(filters, now);
   if (!featuredWhere || !regularWhere) return emptySearchResult(page);
 
-  if (from === 0) {
-    const [featuredCount, regularCount, featuredRows, regularRows] = await Promise.all([
-      prisma.listing.count({ where: featuredWhere }),
-      prisma.listing.count({ where: regularWhere }),
-      prisma.listing.findMany({
-        where: featuredWhere,
-        orderBy: { featuredUntil: "desc" },
-        take: pageSize,
-        select: listingCardSelect,
-      }),
-      prisma.listing.findMany({
-        where: regularWhere,
-        orderBy: { createdAt: "desc" },
-        take: pageSize,
-        select: listingCardSelect,
-      }),
-    ]);
-    const total = featuredCount + regularCount;
-    const featuredOnPage = featuredRows.slice(0, Math.min(pageSize, featuredCount));
-    const remaining = pageSize - featuredOnPage.length;
-    const rows = [...featuredOnPage, ...regularRows.slice(0, remaining)];
-    return {
-      listings: listingsFromCardRows(rows),
-      dealers: dealersFromCardRows(rows),
-      total,
-      page,
-      pageSize,
-      totalPages: Math.max(1, Math.ceil(total / pageSize)),
-    };
-  }
-
-  const [featuredCount, regularCount] = await Promise.all([
-    prisma.listing.count({ where: featuredWhere }),
-    prisma.listing.count({ where: regularWhere }),
-  ]);
-
+  const { featuredCount, regularCount } = await loadCachedSearchSplitCounts(filtersKey(filters));
   const total = featuredCount + regularCount;
   const featuredTake = Math.max(0, Math.min(pageSize, featuredCount - from));
   const remaining = pageSize - featuredTake;
@@ -816,9 +1045,7 @@ async function searchListingsPrisma(filters: ListingFilters): Promise<ListingSea
   };
 }
 
-export async function searchListings(
-  filters: ListingFilters,
-): Promise<ListingSearchResult> {
+async function loadSearchListings(filters: ListingFilters): Promise<ListingSearchResult> {
   if (resolvedBodyTypes(filters) === "none") {
     return emptySearchResult(filters.page);
   }
@@ -850,4 +1077,21 @@ export async function searchListings(
     pageSize,
     totalPages: Math.max(1, Math.ceil(total / pageSize)),
   };
+}
+
+const loadCachedSearchListings = unstable_cache(
+  async (key: string, page: number) => {
+    const filters = parseListingSearchParams(Object.fromEntries(new URLSearchParams(key)));
+    filters.page = page;
+    return loadSearchListings(filters);
+  },
+  ["search-listings"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
+);
+
+export function searchListings(filters: ListingFilters): Promise<ListingSearchResult> {
+  if (resolvedBodyTypes(filters) === "none") {
+    return Promise.resolve(emptySearchResult(filters.page));
+  }
+  return loadCachedSearchListings(filtersKey(filters), filters.page);
 }

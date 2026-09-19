@@ -1,48 +1,63 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Image from "next/image";
 import { Briefcase, MapPin, ShieldCheck } from "lucide-react";
 import { VehicleSearchBar } from "@/components/search/vehicle-search-bar";
-import { Button } from "@/components/ui/button";
-import { countListings, getCategoryCounts, getMakeModelFacets } from "@/lib/data";
+import { getCategoryCounts, getMakeModelFacets } from "@/lib/data";
+import { getPublicCategoryGroups } from "@/lib/catalog-status";
 import { defaultListingFilters } from "@/lib/listing-filters";
 
+const HERO_IMAGE =
+  "/davinci_edit_i_need_an_image_for_a_car_listing_website_hero_ima-2.jpg";
+
 export async function Hero() {
-  const [categoryCounts, resultCount, makeFacets] = await Promise.all([
+  const [categoryCounts, makeFacets, categoryGroups] = await Promise.all([
     getCategoryCounts(),
-    countListings(defaultListingFilters()),
     getMakeModelFacets(defaultListingFilters()),
+    getPublicCategoryGroups(),
   ]);
+  const resultCount = categoryCounts.cars;
 
   return (
-    <section className="relative pt-8 sm:pt-12 lg:pt-16">
-      <div className="mx-auto w-full max-w-site px-4 sm:px-6">
-        <div className="grid items-center gap-8 sm:gap-10 lg:grid-cols-[1fr_0.85fr] lg:gap-12">
-          <div className="min-w-0">
-            <h1 className="max-w-[18ch] text-balance text-[clamp(1.85rem,1.1rem+3.2vw,3rem)] font-bold leading-[1.12] tracking-tight sm:max-w-[15ch]">
-              Malawi&apos;s marketplace for buying and selling cars
-            </h1>
-            <p className="mt-4 max-w-[42ch] text-[1.02rem] text-muted-foreground">
-              Search thousands of vehicles from verified dealers and private
-              sellers, from Lilongwe to Mzuzu.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 xs:flex-row xs:flex-wrap">
-              <Button size="lg" className="w-full xs:w-auto" asChild>
-                <Link href="#listings">Browse listings</Link>
-              </Button>
-              <Button size="lg" variant="outline" className="w-full xs:w-auto" asChild>
-                <Link href="/sell">List your car</Link>
-              </Button>
-            </div>
-          </div>
+    <section className="relative">
+      <div className="relative -mt-16 h-[32rem] sm:h-[38rem] lg:h-[min(50rem,60vw)]">
+        <div className="absolute inset-0 overflow-hidden">
+          <Image
+            src={HERO_IMAGE}
+            alt="Land Cruiser driving along a lakeside road at sunset"
+            fill
+            priority
+            quality={80}
+            sizes="100vw"
+            className="object-cover object-[center_82%]"
+          />
+          <div
+            className="absolute inset-x-0 bottom-0 h-[36%] bg-gradient-to-t from-black/30 via-black/8 to-transparent"
+            aria-hidden
+          />
           <MalawiMap />
         </div>
-        <VehicleSearchBar
-          categoryCounts={categoryCounts}
-          resultCount={resultCount}
-          makeFacets={makeFacets}
-        />
+        <span className="sr-only">
+          Serving Mzuzu, Lilongwe, Zomba, and Blantyre
+        </span>
+
+        <div className="relative z-10 flex h-full flex-col justify-end px-4 pb-5 sm:px-6 sm:pb-8 lg:pb-10">
+          <div className="mx-auto w-full max-w-site">
+            <h1 className="text-balance text-center text-[clamp(1.7rem,1rem+2.4vw,2.75rem)] font-bold leading-[1.12] tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)] sm:whitespace-nowrap">
+              Find new & used cars for sale
+            </h1>
+            <div className="relative mt-5 w-full sm:mx-auto sm:mt-7 sm:max-w-[46rem]">
+              <VehicleSearchBar
+                categoryCounts={categoryCounts}
+                resultCount={resultCount}
+                makeFacets={makeFacets}
+                categoryGroups={categoryGroups}
+                className="mt-0 rounded-2xl border-0 bg-white p-2 shadow-lg sm:rounded-full sm:p-1.5"
+              />
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="mt-8 border-t sm:mt-11">
+      <div className="border-t">
         <div className="mx-auto flex w-full max-w-site flex-col px-4 py-2 sm:flex-row sm:items-stretch sm:px-6 sm:py-[22px]">
           {[
             {
@@ -105,34 +120,46 @@ function TrustItem({
 
 function MalawiMap() {
   return (
-    <div className="relative mx-auto hidden h-[200px] w-full max-w-xs sm:block lg:h-[300px] lg:max-w-none">
-      <svg viewBox="0 0 260 320" fill="none" className="h-full w-full" aria-hidden>
+    <div className="pointer-events-none absolute bottom-[24%] right-[12%] top-[16%] hidden w-[10rem] lg:block xl:right-[14%] xl:w-[11.5rem]">
+      <svg
+        viewBox="48 0 150 320"
+        fill="none"
+        className="h-full w-full overflow-visible drop-shadow-[0_1px_8px_rgba(0,0,0,0.35)]"
+        aria-hidden
+      >
         <path
           d="M120 8c-10 14-8 26-18 34-14 11-30 8-36 22-7 16 6 24 2 40-4 15-20 20-18 36 2 15 18 18 20 32 2 13-9 20-4 34 6 16 24 16 28 30 4 13-4 22 4 34 7 11 22 10 28 22 5 11 0 22 8 30"
-          className="stroke-border"
-          strokeWidth="2"
+          stroke="rgba(255,255,255,0.88)"
+          strokeWidth="4.5"
         />
         <path
           d="M118 10c-9 13-7 25-16 33-13 10-28 7-34 21-6 15 6 23 2 38-4 14-19 19-17 34 2 14 17 17 19 30 2 13-8 19-4 32 6 15 23 15 27 28 3 12-4 21 4 32 6 11 21 9 26 21 5 10 0 21 8 28"
-          className="stroke-foreground/55"
-          strokeWidth="2"
+          stroke="rgba(226,232,240,0.95)"
+          strokeWidth="1.8"
         />
-        <circle cx="80" cy="70" r="4" className="fill-copper" />
-        <text x="90" y="73" className="fill-muted-foreground text-[9px] font-semibold">
-          Mzuzu
-        </text>
-        <circle cx="70" cy="150" r="4" className="fill-copper" />
-        <text x="80" y="153" className="fill-muted-foreground text-[9px] font-semibold">
-          Lilongwe
-        </text>
-        <circle cx="95" cy="235" r="4" className="fill-copper" />
-        <text x="105" y="238" className="fill-muted-foreground text-[9px] font-semibold">
-          Blantyre
-        </text>
-        <circle cx="88" cy="200" r="3" className="fill-muted-foreground" />
-        <text x="97" y="203" className="fill-muted-foreground text-[9px] font-semibold">
-          Zomba
-        </text>
+        <circle cx="80" cy="70" r="5" className="fill-copper" />
+        <circle cx="70" cy="150" r="5" className="fill-copper" />
+        <circle cx="88" cy="200" r="3.5" fill="#E8EEF4" />
+        <circle cx="95" cy="235" r="5" className="fill-copper" />
+        <g
+          fill="#fff"
+          fontSize="13"
+          fontWeight="600"
+          style={{ filter: "drop-shadow(0 1px 3px rgba(16,24,38,0.55))" }}
+        >
+          <text x="90" y="75">
+            Mzuzu
+          </text>
+          <text x="80" y="155">
+            Lilongwe
+          </text>
+          <text x="97" y="205">
+            Zomba
+          </text>
+          <text x="105" y="240">
+            Blantyre
+          </text>
+        </g>
       </svg>
     </div>
   );

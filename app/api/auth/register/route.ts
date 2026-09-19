@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { isConfiguredAdminEmail } from "@/lib/auth-env";
+import { prisma } from "@/lib/prisma";
 import { getEmailRedirectTo } from "@/lib/return-to";
 import { createSupabaseAuthClient, getSupabase } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
@@ -82,6 +84,17 @@ export async function POST(request: Request) {
         { error: "Could not create your account. Try again." },
         { status: 500 },
       );
+    }
+
+    if (isConfiguredAdminEmail(input.email) && process.env.DATABASE_URL) {
+      try {
+        await prisma.user.update({
+          where: { email: input.email.toLowerCase() },
+          data: { role: "admin" },
+        });
+      } catch (error) {
+        console.error("Failed to apply ADMIN_EMAIL role", error);
+      }
     }
 
     return NextResponse.json({ ok: true });

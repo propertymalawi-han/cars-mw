@@ -14,11 +14,12 @@ import { listingDisplayParts } from "@/lib/listing-title";
 import type { Listing } from "@/types";
 import { BODY_TYPE_LABELS } from "@/types";
 
-const STATUS_VARIANT: Record<Listing["status"], "success" | "copper" | "secondary" | "outline"> = {
+const STATUS_VARIANT: Record<Listing["status"], "success" | "copper" | "secondary" | "outline" | "destructive"> = {
   active: "success",
   sold: "copper",
   draft: "secondary",
   expired: "outline",
+  muted: "destructive",
 };
 
 function titleCase(value: string) {

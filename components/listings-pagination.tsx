@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Pagination,
   PaginationContent,
@@ -18,17 +22,30 @@ export function ListingsPagination({
   filters,
   totalPages,
 }: ListingsPaginationProps) {
-  if (totalPages <= 1) return null;
-
-  const page = Math.min(Math.max(filters.page, 1), totalPages);
+  const router = useRouter();
+  const page = Math.min(Math.max(filters.page, 1), Math.max(totalPages, 1));
   const pages = visiblePages(page, totalPages);
+  const previousHref = listingsHref({ ...filters, page: Math.max(1, page - 1) });
+  const nextHref = listingsHref({
+    ...filters,
+    page: Math.min(Math.max(totalPages, 1), page + 1),
+  });
+
+  useEffect(() => {
+    if (totalPages <= 1) return;
+    if (page > 1) router.prefetch(previousHref);
+    if (page < totalPages) router.prefetch(nextHref);
+  }, [nextHref, page, previousHref, router, totalPages]);
+
+  if (totalPages <= 1) return null;
 
   return (
     <Pagination>
       <PaginationContent className="max-w-full flex-wrap justify-center gap-1">
         <PaginationItem>
           <PaginationPrevious
-            href={listingsHref({ ...filters, page: Math.max(1, page - 1) })}
+            href={previousHref}
+            prefetch
             aria-disabled={page <= 1}
             tabIndex={page <= 1 ? -1 : undefined}
             className={page <= 1 ? "pointer-events-none opacity-50" : undefined}
@@ -44,6 +61,7 @@ export function ListingsPagination({
               <PaginationLink
                 href={listingsHref({ ...filters, page: item })}
                 isActive={item === page}
+                prefetch={item === page + 1 || item === page - 1}
               >
                 {item}
               </PaginationLink>
@@ -52,10 +70,8 @@ export function ListingsPagination({
         )}
         <PaginationItem>
           <PaginationNext
-            href={listingsHref({
-              ...filters,
-              page: Math.min(totalPages, page + 1),
-            })}
+            href={nextHref}
+            prefetch
             aria-disabled={page >= totalPages}
             tabIndex={page >= totalPages ? -1 : undefined}
             className={

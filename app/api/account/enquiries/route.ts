@@ -18,7 +18,9 @@ export async function POST(request: Request) {
     where: { id: parsed.data.listingId },
     include: { seller: { include: { dealer: true } } },
   });
-  if (!listing) return jsonError("Listing not found.", 404);
+  if (!listing || listing.deletedAt || listing.status === "muted" || listing.status === "draft") {
+    return jsonError("Listing not found.", 404);
+  }
   if (listing.sellerId === user.id) {
     return jsonError("You cannot enquire about your own listing.");
   }

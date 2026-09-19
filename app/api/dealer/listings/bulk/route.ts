@@ -3,6 +3,7 @@ import { requireDealerUser } from "@/lib/dealer";
 import { jsonError } from "@/lib/api-session";
 import { prisma } from "@/lib/prisma";
 import { dealerListingBulkSchema } from "@/lib/validations/dealer";
+import { revalidateListingsCache } from "@/lib/listings-cache";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,8 @@ export async function POST(request: Request) {
       id: { in: parsed.data.ids },
       sellerId: user.id,
       sellerType: "dealer",
+      deletedAt: null,
+      status: { not: "muted" },
     },
     select: { id: true },
   });
@@ -27,11 +30,19 @@ export async function POST(request: Request) {
   if (parsed.data.action === "delete") {
     await prisma.listing.deleteMany({ where: { id: { in: ids } } });
   } else {
-    await prisma.listing.updateMany({
-      where: { id: { in: ids } },
-      data: { status: "sold" },
-    });
+    const soldAt = new Date();
+    await prisma.$transaction([
+      prisma.listing.updateMany({
+        where: { id: { in: ids }, soldAt: null },
+        data: { status: "sold", soldAt },
+      }),
+      prisma.listing.updateMany({
+        where: { id: { in: ids }, soldAt: { not: null } },
+        data: { status: "sold" },
+      }),
+    ]);
   }
 
+  revalidateListingsCache();
   return NextResponse.json({ ids, action: parsed.data.action });
 }

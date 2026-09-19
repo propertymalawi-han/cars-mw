@@ -79,7 +79,7 @@ export async function getDealerOverviewStats(
   const [activeListings, viewsThisMonth, enquiriesThisMonth, views, enquiries, dealer] =
     await Promise.all([
       prisma.listing.count({
-        where: { ...listingWhere, status: "active" },
+        where: { ...listingWhere, status: "active", deletedAt: null },
       }),
       prisma.viewHistory.count({
         where: {
@@ -159,7 +159,7 @@ export type DealerListingRow = {
 
 export async function getDealerListings(sellerId: string): Promise<DealerListingRow[]> {
   const rows = await prisma.listing.findMany({
-    where: { sellerId, sellerType: "dealer" },
+    where: { sellerId, sellerType: "dealer", deletedAt: null },
     orderBy: [{ createdAt: "desc" }],
     select: {
       id: true,

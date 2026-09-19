@@ -1,6 +1,7 @@
 import type { Adapter, AdapterUser } from "next-auth/adapters";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { User } from "@prisma/client";
+import { isConfiguredAdminEmail } from "@/lib/auth-env";
 import { prisma } from "@/lib/prisma";
 
 function toAdapterUser(user: User): AdapterUser {
@@ -10,7 +11,10 @@ function toAdapterUser(user: User): AdapterUser {
     email: user.email,
     emailVerified: user.emailVerified,
     image: user.avatarUrl,
-  };
+    accountType: user.accountType,
+    role: user.role,
+    avatarUrl: user.avatarUrl,
+  } as AdapterUser;
 }
 
 export function CarsMwPrismaAdapter(): Adapter {
@@ -27,7 +31,7 @@ export function CarsMwPrismaAdapter(): Adapter {
           emailVerified: data.emailVerified,
           avatarUrl: data.image,
           accountType: "individual",
-          role: "user",
+          role: isConfiguredAdminEmail(email) ? "admin" : "user",
         },
       });
       return toAdapterUser(user);

@@ -34,11 +34,15 @@ import { formatVehicleId } from "@/lib/vehicle-id";
 
 type StatusFilter = "all" | AccountListingRow["status"];
 
-const STATUS_VARIANT: Record<AccountListingRow["status"], "success" | "copper" | "secondary" | "outline"> = {
+const STATUS_VARIANT: Record<
+  AccountListingRow["status"],
+  "success" | "copper" | "secondary" | "outline" | "destructive"
+> = {
   active: "success",
   sold: "copper",
   draft: "secondary",
   expired: "outline",
+  muted: "destructive",
 };
 
 async function readError(response: Response) {
@@ -109,6 +113,7 @@ export function AccountListingsTable({ listings }: { listings: AccountListingRow
             <TabsTrigger value="sold">Sold</TabsTrigger>
             <TabsTrigger value="draft">Draft</TabsTrigger>
             <TabsTrigger value="expired">Expired</TabsTrigger>
+            <TabsTrigger value="muted">Muted</TabsTrigger>
           </TabsList>
         </Tabs>
         <Button asChild variant="copper">
@@ -192,23 +197,28 @@ function ListingActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuItem asChild>
-          <Link href={`/sell?listingId=${listing.id}&from=account`}>Edit</Link>
-        </DropdownMenuItem>
-        {listing.status === "expired" ? (
-          <DropdownMenuItem onSelect={onRenew}>Renew</DropdownMenuItem>
-        ) : null}
-        {listing.status !== "sold" ? (
-          <DropdownMenuItem onSelect={onMarkSold}>Mark as sold</DropdownMenuItem>
-        ) : null}
-        {/* TODO: Offer individuals a paid "boost this listing" option (dealer featuring is the current paid promotion path). */}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-destructive focus:text-destructive"
-          onSelect={onDelete}
-        >
-          Delete
-        </DropdownMenuItem>
+        {listing.status === "muted" ? (
+          <DropdownMenuItem disabled>Muted by CarsMW staff</DropdownMenuItem>
+        ) : (
+          <>
+            <DropdownMenuItem asChild>
+              <Link href={`/sell?listingId=${listing.id}&from=account`}>Edit</Link>
+            </DropdownMenuItem>
+            {listing.status === "expired" ? (
+              <DropdownMenuItem onSelect={onRenew}>Renew</DropdownMenuItem>
+            ) : null}
+            {listing.status !== "sold" ? (
+              <DropdownMenuItem onSelect={onMarkSold}>Mark as sold</DropdownMenuItem>
+            ) : null}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={onDelete}
+            >
+              Delete
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -13,12 +13,13 @@ export const VEHICLE_CATEGORIES = [
   "attachments",
 ] as const;
 
-export type VehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
+export type KnownVehicleCategory = (typeof VEHICLE_CATEGORIES)[number];
+export type VehicleCategory = KnownVehicleCategory | (string & {});
 
 export const DEFAULT_VEHICLE_CATEGORY: VehicleCategory = "cars";
 
 export const VEHICLE_CATEGORY_LABELS: Record<
-  VehicleCategory,
+  KnownVehicleCategory,
   { singular: string; plural: string }
 > = {
   cars: { singular: "car", plural: "cars" },
@@ -36,7 +37,7 @@ export type FilterBodyType = {
   label: string;
 };
 
-export const CATEGORY_BODY_TYPES: Record<VehicleCategory, FilterBodyType[]> = {
+export const CATEGORY_BODY_TYPES: Record<KnownVehicleCategory, FilterBodyType[]> = {
   cars: [
     { value: "sedan", label: "Sedan" },
     { value: "suv", label: "SUV & 4x4" },
@@ -100,7 +101,7 @@ export const CATEGORY_GROUPS = [
   },
 ] as const;
 
-export type CategoryCounts = Record<VehicleCategory, number>;
+export type CategoryCounts = Record<string, number>;
 
 export function emptyCategoryCounts(): CategoryCounts {
   return {
@@ -167,7 +168,10 @@ export const SEAT_OPTIONS = [
 export const PICKER_DISTRICTS = MALAWI_DISTRICTS;
 
 export function isVehicleCategory(value: string): value is VehicleCategory {
-  return VEHICLE_CATEGORIES.includes(value as VehicleCategory);
+  if (VEHICLE_CATEGORIES.includes(value as KnownVehicleCategory)) {
+    return true;
+  }
+  return /^[a-z][a-z0-9-]{0,47}$/.test(value);
 }
 
 export function isDbBodyType(value: string): value is BodyType {
@@ -175,17 +179,26 @@ export function isDbBodyType(value: string): value is BodyType {
 }
 
 export function categoryNoun(category: VehicleCategory, count: number): string {
-  const labels = VEHICLE_CATEGORY_LABELS[category];
-  return count === 1 ? labels.singular : labels.plural;
+  const labels = VEHICLE_CATEGORY_LABELS[category as KnownVehicleCategory];
+  if (labels) return count === 1 ? labels.singular : labels.plural;
+  return count === 1 ? "listing" : "listings";
 }
 
 export function categoryDisplayName(category: VehicleCategory): string {
-  const { plural } = VEHICLE_CATEGORY_LABELS[category];
-  return plural.charAt(0).toUpperCase() + plural.slice(1);
+  const labels = VEHICLE_CATEGORY_LABELS[category as KnownVehicleCategory];
+  if (labels) {
+    const { plural } = labels;
+    return plural.charAt(0).toUpperCase() + plural.slice(1);
+  }
+  return category
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 export function bodyTypesForCategory(category: VehicleCategory): FilterBodyType[] {
-  return CATEGORY_BODY_TYPES[category];
+  return CATEGORY_BODY_TYPES[category as KnownVehicleCategory] ?? [];
 }
 
 export type PricingMode = "price" | "finance";

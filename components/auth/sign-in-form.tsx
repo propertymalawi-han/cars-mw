@@ -22,6 +22,7 @@ import { withReturnTo } from "@/lib/return-to";
 import { signInSchema, type SignInValues } from "@/lib/validations/auth";
 
 const ERROR_MESSAGES: Record<string, string> = {
+  account_suspended: "This account has been suspended.",
   invalid_credentials: "Email or password is incorrect.",
   CredentialsSignin: "Email or password is incorrect.",
   email_not_verified: "Verify your email before signing in. Check your inbox for a link.",

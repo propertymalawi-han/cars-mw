@@ -1,15 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import { slugify } from "@/lib/slug";
 
 export function slugifyDealerName(name: string) {
-  const slug = name
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-
-  return slug || "dealer";
+  return slugify(name, "dealer");
 }
 
 export async function uniqueDealerSlug(name: string, excludeId?: string) {

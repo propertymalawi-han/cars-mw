@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   Container,
+  Layers,
   Sailboat,
   Truck,
   Wrench,
@@ -17,13 +18,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatNumber } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import {
-  CATEGORY_GROUPS,
+  fallbackPublicCategoryGroups,
+  type PublicCategoryGroup,
+} from "@/lib/vehicle-categories";
+import {
   categoryDisplayName,
   type CategoryCounts,
   type VehicleCategory,
 } from "@/lib/vehicle-search";
 
-const CATEGORY_ICONS: Record<VehicleCategory, ReactNode> = {
+const CATEGORY_ICONS: Record<string, ReactNode> = {
   cars: <Car />,
   bikes: <Bike />,
   boats: <Sailboat />,
@@ -37,15 +41,18 @@ const CATEGORY_ICONS: Record<VehicleCategory, ReactNode> = {
 type CategoryPickerProps = {
   value: VehicleCategory;
   counts: CategoryCounts;
+  groups?: PublicCategoryGroup[];
   onChange: (category: VehicleCategory) => void;
 };
 
-export function CategoryPicker({ value, counts, onChange }: CategoryPickerProps) {
+export function CategoryPicker({
+  value,
+  counts,
+  groups = fallbackPublicCategoryGroups(),
+  onChange,
+}: CategoryPickerProps) {
   const [open, setOpen] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    leisure: true,
-    commercial: true,
-  });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -67,7 +74,7 @@ export function CategoryPicker({ value, counts, onChange }: CategoryPickerProps)
         avoidCollisions={false}
         className="z-[100] max-h-[min(28rem,70vh)] w-[min(calc(100vw-2rem),18.5rem)] overflow-y-auto border bg-card p-1.5 shadow-md"
       >
-        {CATEGORY_GROUPS.map((group) => (
+        {groups.map((group) => (
           <div key={group.id}>
             {group.label ? (
               <button
@@ -76,7 +83,7 @@ export function CategoryPicker({ value, counts, onChange }: CategoryPickerProps)
                 onClick={() =>
                   setOpenGroups((current) => ({
                     ...current,
-                    [group.id]: !current[group.id],
+                    [group.id]: current[group.id] === false,
                   }))
                 }
               >
@@ -84,25 +91,25 @@ export function CategoryPicker({ value, counts, onChange }: CategoryPickerProps)
                 <ChevronDown
                   className={cn(
                     "h-4 w-4 text-muted-foreground transition-transform",
-                    openGroups[group.id] ? "rotate-180" : "rotate-0",
+                    openGroups[group.id] !== false ? "rotate-180" : "rotate-0",
                   )}
                 />
               </button>
             ) : null}
-            {(group.label ? openGroups[group.id] : true)
-              ? group.items.map((category) => {
-                  const selected = category === value;
+            {(group.label ? openGroups[group.id] !== false : true)
+              ? group.items.map((item) => {
+                  const selected = item.slug === value;
                   const nested = Boolean(group.label);
                   return (
                     <button
-                      key={category}
+                      key={item.slug}
                       type="button"
                       className={cn(
                         "flex min-h-11 w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-sm hover:bg-accent hover:text-accent-foreground",
                         nested && "pl-8",
                       )}
                       onClick={() => {
-                        onChange(category);
+                        onChange(item.slug);
                         setOpen(false);
                       }}
                     >
@@ -111,17 +118,15 @@ export function CategoryPicker({ value, counts, onChange }: CategoryPickerProps)
                           <Check className="h-4 w-4 shrink-0 text-foreground" />
                         ) : nested ? (
                           <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">
-                            {CATEGORY_ICONS[category]}
+                            {CATEGORY_ICONS[item.slug] ?? <Layers />}
                           </span>
                         ) : (
                           <span className="w-4 shrink-0" />
                         )}
-                        <span className="truncate font-medium">
-                          {categoryDisplayName(category)}
-                        </span>
+                        <span className="truncate font-medium">{item.name}</span>
                       </span>
                       <span className="rounded-full bg-muted px-2 py-0.5 text-[0.7rem] font-semibold tabular-nums text-primary">
-                        {formatNumber(counts[category] ?? 0)}
+                        {formatNumber(counts[item.slug] ?? 0)}
                       </span>
                     </button>
                   );

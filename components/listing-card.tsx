@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import { ListingImage } from "@/components/listing-image";
+import { ListingLink } from "@/components/listing-link";
 import { Clock, MapPin } from "lucide-react";
 import { FavouriteButton } from "@/components/account/favourite-button";
 import { Badge } from "@/components/ui/badge";
@@ -49,13 +49,12 @@ export function ListingCard({
   if (variant === "compact") {
     return (
       <Card className="overflow-hidden transition-[box-shadow,border-color,transform] duration-page ease-out hover:border-border hover:shadow-md active:scale-[0.98] motion-reduce:transition-shadow motion-reduce:active:scale-100">
-        <Link href={`/listings/${listing.id}`} className="flex gap-3 p-3 sm:gap-4 sm:p-4">
+        <ListingLink href={`/listings/${listing.id}`} className="flex gap-3 p-3 sm:gap-4 sm:p-4">
           <div className="relative h-[4.75rem] w-[6.75rem] shrink-0 overflow-hidden rounded-md bg-muted sm:h-20 sm:w-32">
             {image ? (
-              <Image
+              <ListingImage
                 src={image}
                 alt={headline}
-                fill
                 className="object-cover"
                 sizes="128px"
                 priority={priority}
@@ -76,7 +75,7 @@ export function ListingCard({
             </p>
             {meta ? <div className="text-xs text-muted-foreground">{meta}</div> : null}
           </div>
-        </Link>
+        </ListingLink>
       </Card>
     );
   }
@@ -96,13 +95,12 @@ export function ListingCard({
           />
         </div>
       ) : null}
-      <Link href={`/listings/${listing.id}`} className="flex h-full flex-col">
+      <ListingLink href={`/listings/${listing.id}`} className="flex h-full flex-col">
         <div className="relative flex aspect-[16/9] items-center justify-center border-b bg-muted sm:aspect-[16/10]">
           {image ? (
-            <Image
+            <ListingImage
               src={image}
               alt={headline}
-              fill
               className="object-cover"
               sizes="(min-width: 860px) 33vw, (min-width: 640px) 50vw, 100vw"
               priority={priority}
@@ -154,7 +152,7 @@ export function ListingCard({
             </span>
           </div>
         </div>
-      </Link>
+      </ListingLink>
     </Card>
   );
 }

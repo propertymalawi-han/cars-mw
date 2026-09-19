@@ -1,7 +1,9 @@
+"use client";
+
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { HomeFeaturedTabId } from "@/lib/home-featured";
 
 const TABS = [
   { id: "all", label: "All vehicles", icon: <SedanIcon /> },
@@ -10,9 +12,19 @@ const TABS = [
   { id: "pickup", label: "Pickup / Bakkie", icon: <PickupIcon /> },
   { id: "hatchback", label: "Hatchback", icon: <HatchIcon /> },
   { id: "van", label: "Minibus", icon: <VanIcon /> },
-] as const;
+] as const satisfies ReadonlyArray<{
+  id: HomeFeaturedTabId;
+  label: string;
+  icon: ReactNode;
+}>;
 
-export function BodyTypeTabs({ active = "all" }: { active?: string }) {
+export function BodyTypeTabs({
+  active = "all",
+  onChange,
+}: {
+  active?: string;
+  onChange: (id: HomeFeaturedTabId) => void;
+}) {
   const current = TABS.some((tab) => tab.id === active) ? active : "all";
 
   return (
@@ -21,22 +33,20 @@ export function BodyTypeTabs({ active = "all" }: { active?: string }) {
         <div className="no-scrollbar flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1">
           {TABS.map((tab) => {
             const isActive = tab.id === current;
-            const href =
-              tab.id === "all" ? "/#listings" : `/?body=${tab.id}#listings`;
             return (
               <Button
                 key={tab.id}
+                type="button"
                 variant={isActive ? "default" : "outline"}
                 className={cn(
                   "h-11 shrink-0 snap-start rounded-full px-4 text-[0.84rem] font-medium shadow-none",
                   !isActive && "text-muted-foreground hover:text-foreground",
                 )}
-                asChild
+                aria-pressed={isActive}
+                onClick={() => onChange(tab.id)}
               >
-                <Link href={href}>
-                  {tab.icon}
-                  {tab.label}
-                </Link>
+                {tab.icon}
+                {tab.label}
               </Button>
             );
           })}

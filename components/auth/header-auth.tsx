@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { LogOut, Store } from "lucide-react";
+import { LogOut, Shield, Store } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ import {
   isAccountNavActive,
 } from "@/lib/account-nav";
 import { cn } from "@/lib/utils";
+import { isStaffRole } from "@/types";
 
 function initials(name?: string | null, email?: string | null) {
   const source = name?.trim() || email?.trim() || "U";
@@ -104,7 +105,11 @@ export function HeaderAuth({ compact = false }: { compact?: boolean }) {
     }
 
     return (
-      <Button variant="ghost" className="hidden nav:inline-flex" asChild>
+      <Button
+          variant="ghost"
+          className="hidden nav:inline-flex group-data-[over-hero]/header:text-white group-data-[over-hero]/header:hover:text-white/80"
+          asChild
+        >
         <Link href="/sign-in">Sign in</Link>
       </Button>
     );
@@ -112,6 +117,7 @@ export function HeaderAuth({ compact = false }: { compact?: boolean }) {
 
   const user = session.user;
   const isDealer = user.accountType === "dealer";
+  const isStaff = isStaffRole(user.role);
   const sellingLinks = isDealer ? [] : ACCOUNT_SELLING_LINKS;
   const email = user.email ?? user.name ?? "Account";
 
@@ -147,6 +153,20 @@ export function HeaderAuth({ compact = false }: { compact?: boolean }) {
                 <span className="flex-1">Dealer dashboard</span>
                 <Badge variant="copper" className="px-1.5 py-0 text-[0.65rem] leading-4">
                   Dealer
+                </Badge>
+              </Link>
+            </SheetClose>
+            <Separator className="my-1" />
+          </>
+        ) : null}
+        {isStaff ? (
+          <>
+            <SheetClose asChild>
+              <Link href="/admin" className={sheetItemClass("/admin")}>
+                <Shield className="size-4 shrink-0" />
+                <span className="flex-1">Admin</span>
+                <Badge variant="outline" className="px-1.5 py-0 text-[0.65rem] leading-4">
+                  Staff
                 </Badge>
               </Link>
             </SheetClose>
@@ -236,6 +256,20 @@ export function HeaderAuth({ compact = false }: { compact?: boolean }) {
                 <span className="flex-1">Dealer dashboard</span>
                 <Badge variant="copper" className="px-1.5 py-0 text-[0.65rem] leading-4">
                   Dealer
+                </Badge>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-border" />
+          </>
+        ) : null}
+        {isStaff ? (
+          <>
+            <DropdownMenuItem asChild className={menuItemClass("/admin")}>
+              <Link href="/admin">
+                <Shield />
+                <span className="flex-1">Admin</span>
+                <Badge variant="outline" className="px-1.5 py-0 text-[0.65rem] leading-4">
+                  Staff
                 </Badge>
               </Link>
             </DropdownMenuItem>

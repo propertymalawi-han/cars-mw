@@ -25,7 +25,7 @@ export function SiteMobileNav() {
           type="button"
           variant="ghost"
           size="icon"
-          className="text-foreground nav:hidden"
+          className="text-foreground transition-colors nav:hidden group-data-[over-hero]/header:text-white group-data-[over-hero]/header:hover:text-white/80"
           aria-label="Open menu"
         >
           <Menu />

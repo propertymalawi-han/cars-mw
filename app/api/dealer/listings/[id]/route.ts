@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { requireDealerUser } from "@/lib/dealer";
 import { jsonError } from "@/lib/api-session";
 import { featuredUntilFromDays } from "@/lib/listing-featured";
+import { listingOwnerMutationError } from "@/lib/listing-moderation";
+import { soldAtForStatusChange } from "@/lib/listing-sold";
 import { prisma } from "@/lib/prisma";
 import { dealerListingPatchSchema } from "@/lib/validations/dealer";
+import { revalidateListingsCache } from "@/lib/listings-cache";
 
 export const runtime = "nodejs";
 
@@ -11,7 +14,7 @@ type RouteContext = { params: { id: string } };
 
 async function getOwnedListing(sellerId: string, id: string) {
   return prisma.listing.findFirst({
-    where: { id, sellerId, sellerType: "dealer" },
+    where: { id, sellerId, sellerType: "dealer", deletedAt: null },
   });
 }
 
@@ -24,13 +27,24 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   const listing = await getOwnedListing(user.id, params.id);
   if (!listing) return jsonError("Listing not found.", 404);
+  const blocked = listingOwnerMutationError(listing);
+  if (blocked) return blocked;
 
   const data: {
     status?: typeof listing.status;
     featuredUntil?: Date | null;
+    soldAt?: Date | null;
   } = {};
 
-  if (parsed.data.status) data.status = parsed.data.status;
+  if (parsed.data.status) {
+    data.status = parsed.data.status;
+    const soldAt = soldAtForStatusChange({
+      nextStatus: parsed.data.status,
+      previousStatus: listing.status,
+      existingSoldAt: listing.soldAt,
+    });
+    if (soldAt !== undefined) data.soldAt = soldAt;
+  }
   if (parsed.data.featured === false) data.featuredUntil = null;
   if (parsed.data.featured === true) {
     data.featuredUntil = featuredUntilFromDays(parsed.data.days ?? 14);
@@ -41,6 +55,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     data,
   });
 
+  revalidateListingsCache();
   return NextResponse.json({
     id: updated.id,
     status: updated.status,
@@ -54,7 +69,10 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
   const listing = await getOwnedListing(user.id, params.id);
   if (!listing) return jsonError("Listing not found.", 404);
+  const blockedDelete = listingOwnerMutationError(listing);
+  if (blockedDelete) return blockedDelete;
 
   await prisma.listing.delete({ where: { id: listing.id } });
+  revalidateListingsCache();
   return NextResponse.json({ id: listing.id });
 }

@@ -62,7 +62,7 @@ export async function getAccountListings(sellerId: string): Promise<AccountListi
   await expireStalePrivateListings(sellerId);
 
   const rows = await prisma.listing.findMany({
-    where: { sellerId, sellerType: "private" },
+    where: { sellerId, sellerType: "private", deletedAt: null },
     orderBy: [{ createdAt: "desc" }],
     select: {
       id: true,

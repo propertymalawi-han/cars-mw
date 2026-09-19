@@ -24,5 +24,6 @@ declare module "next-auth/jwt" {
     accountType?: AccountType;
     role?: UserRole;
     avatarUrl?: string | null;
+    roleCheckedAt?: number;
   }
 }

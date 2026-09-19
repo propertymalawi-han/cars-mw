@@ -62,9 +62,10 @@ export const FUEL_TYPES = ["petrol", "diesel", "hybrid", "electric"] as const;
 
 export const SELLER_TYPES = ["dealer", "private"] as const;
 
-export const LISTING_STATUSES = ["active", "sold", "draft", "expired"] as const;
+export const LISTING_STATUSES = ["active", "sold", "draft", "expired", "muted"] as const;
 
-export const USER_ROLES = ["user", "dealer", "admin"] as const;
+export const USER_ROLES = ["user", "dealer", "admin", "support"] as const;
+export const STAFF_ROLES = ["admin", "support"] as const;
 
 export const ACCOUNT_TYPES = ["individual", "dealer"] as const;
 
@@ -87,8 +88,25 @@ export type FuelType = (typeof FUEL_TYPES)[number];
 export type SellerType = (typeof SELLER_TYPES)[number];
 export type ListingStatus = (typeof LISTING_STATUSES)[number];
 export type UserRole = (typeof USER_ROLES)[number];
+export type StaffRole = (typeof STAFF_ROLES)[number];
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+export function isStaffRole(role?: string | null): role is StaffRole {
+  return role === "admin" || role === "support";
+}
 export type EnquiryStatus = (typeof ENQUIRY_STATUSES)[number];
+
+export const USER_ROLE_LABEL: Record<UserRole, string> = {
+  user: "User",
+  dealer: "Dealer",
+  admin: "Admin",
+  support: "Support",
+};
+
+export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
+  individual: "Individual",
+  dealer: "Dealer",
+};
 
 export interface User {
   id: string;
@@ -99,6 +117,9 @@ export interface User {
   accountType: AccountType;
   avatarUrl: string | null;
   emailVerified?: string | null;
+  suspended?: boolean;
+  suspendedReason?: string | null;
+  suspendedAt?: string | null;
 }
 
 export interface Dealer {
@@ -137,6 +158,9 @@ export interface Listing {
   sellerType: SellerType;
   status: ListingStatus;
   featuredUntil?: string | null;
+  mutedReason?: string | null;
+  deletedAt?: string | null;
+  soldAt?: string | null;
   createdAt: string;
 }
 
