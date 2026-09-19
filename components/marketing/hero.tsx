@@ -28,7 +28,7 @@ export async function Hero() {
             priority
             quality={80}
             sizes="100vw"
-            className="object-cover object-[center_82%]"
+            className="object-cover object-[center_82%] max-sm:-translate-y-[16%] max-sm:origin-[center_78%] max-sm:scale-[1.3]"
           />
           <div
             className="absolute inset-x-0 bottom-0 h-[36%] bg-gradient-to-t from-black/30 via-black/8 to-transparent"
