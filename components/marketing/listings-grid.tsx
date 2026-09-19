@@ -1,11 +1,16 @@
 import { ListingCard } from "@/components/listing-card";
 import { Button } from "@/components/ui/button";
-import { dealerForListing, getFeaturedListings } from "@/lib/data";
+import { dealerForListing } from "@/lib/listing-dealers";
+import type { Dealer, Listing } from "@/types";
 import Link from "next/link";
 
-export async function ListingsGrid({ bodyType }: { bodyType?: string }) {
-  const { listings, dealers } = await getFeaturedListings(bodyType);
-
+export function ListingsGrid({
+  listings,
+  dealers,
+}: {
+  listings: Listing[];
+  dealers: Dealer[];
+}) {
   return (
     <section id="listings" className="scroll-mt-28 pb-16 pt-5">
       <div className="mx-auto w-full max-w-site px-4 sm:px-6">

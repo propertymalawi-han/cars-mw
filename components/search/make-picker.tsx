@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { formatNumber } from "@/lib/currency";
+import { partitionPopularMakes } from "@/lib/vehicle-makes";
 import {
   emptyMakeSelection,
   filterMakeFacets,
@@ -155,6 +156,16 @@ export function MakePickerPanel({
   onExpandedModelChange,
 }: MakePickerPanelProps) {
   const visible = useMemo(() => filterMakeFacets(facets, query), [facets, query]);
+  const sections = useMemo(() => {
+    const { popular, rest } = partitionPopularMakes(visible);
+    if (popular.length > 0 && rest.length > 0) {
+      return [
+        { key: "popular", items: popular },
+        { key: "all", items: rest, heading: "All makes" },
+      ];
+    }
+    return [{ key: "makes", items: visible }];
+  }, [visible]);
   const anyId = useId();
   const anyChecked = !hasMakeSelection(selection);
 
@@ -189,43 +200,53 @@ export function MakePickerPanel({
         {visible.length === 0 ? (
           <p className="px-3 py-3 text-sm text-muted-foreground">No matching makes</p>
         ) : (
-          visible.map((facet) => {
-            const makeOpen = Boolean(
-              expandedMake && facet.make.toLowerCase() === expandedMake.toLowerCase(),
-            );
-            return (
-              <MakeRow
-                key={facet.make}
-                facet={facet}
-                selection={selection}
-                expanded={makeOpen}
-                expandedModel={makeOpen ? expandedModel : undefined}
-                onToggleMake={(checked) =>
-                  onSelectionChange(toggleMake(selection, facet, checked))
-                }
-                onToggleModels={() => {
-                  onExpandedMakeChange(makeOpen ? undefined : facet.make);
-                  onExpandedModelChange(undefined);
-                }}
-                onToggleModel={(model, checked) =>
-                  onSelectionChange(toggleModel(selection, facet, model, checked))
-                }
-                onToggleVariants={(model) =>
-                  onExpandedModelChange(
-                    expandedModel &&
-                      model.model.toLowerCase() === expandedModel.toLowerCase()
-                      ? undefined
-                      : model.model,
-                  )
-                }
-                onToggleVariant={(model, variant, checked) =>
-                  onSelectionChange(
-                    toggleVariant(selection, facet, model, variant, checked),
-                  )
-                }
-              />
-            );
-          })
+          sections.map((section) => (
+            <div key={section.key}>
+              {section.heading ? (
+                <div className="mt-1 border-t border-border px-3 pb-1 pt-2 text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {section.heading}
+                </div>
+              ) : null}
+              {section.items.map((facet) => {
+                const makeOpen = Boolean(
+                  expandedMake &&
+                    facet.make.toLowerCase() === expandedMake.toLowerCase(),
+                );
+                return (
+                  <MakeRow
+                    key={facet.make}
+                    facet={facet}
+                    selection={selection}
+                    expanded={makeOpen}
+                    expandedModel={makeOpen ? expandedModel : undefined}
+                    onToggleMake={(checked) =>
+                      onSelectionChange(toggleMake(selection, facet, checked))
+                    }
+                    onToggleModels={() => {
+                      onExpandedMakeChange(makeOpen ? undefined : facet.make);
+                      onExpandedModelChange(undefined);
+                    }}
+                    onToggleModel={(model, checked) =>
+                      onSelectionChange(toggleModel(selection, facet, model, checked))
+                    }
+                    onToggleVariants={(model) =>
+                      onExpandedModelChange(
+                        expandedModel &&
+                          model.model.toLowerCase() === expandedModel.toLowerCase()
+                          ? undefined
+                          : model.model,
+                      )
+                    }
+                    onToggleVariant={(model, variant, checked) =>
+                      onSelectionChange(
+                        toggleVariant(selection, facet, model, variant, checked),
+                      )
+                    }
+                  />
+                );
+              })}
+            </div>
+          ))
         )}
       </div>
     </div>

@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { dealers, listings, users } from "./seed-data";
+import { seedAdminFromEnv } from "./seed-admin";
+import { seedVehicleCategories } from "./seed-categories";
 
 const prisma = new PrismaClient();
 
@@ -10,6 +12,7 @@ async function main() {
   await prisma.viewHistory.deleteMany();
   await prisma.review.deleteMany();
   await prisma.notificationPreference.deleteMany();
+  await prisma.adminAuditLog.deleteMany();
   await prisma.listing.deleteMany();
   await prisma.dealer.deleteMany();
   await prisma.user.deleteMany();
@@ -63,9 +66,13 @@ async function main() {
       status: listing.status,
       vehicleNumber: listing.vehicleNumber,
       featuredUntil: listing.featuredUntil ? new Date(listing.featuredUntil) : null,
+      soldAt: listing.soldAt ? new Date(listing.soldAt) : null,
       createdAt: new Date(listing.createdAt),
     })),
   });
+
+  await seedAdminFromEnv(prisma);
+  const categoryCount = await seedVehicleCategories(prisma);
 
   const [userCount, dealerCount, listingCount] = await Promise.all([
     prisma.user.count(),
@@ -74,7 +81,7 @@ async function main() {
   ]);
 
   console.log(
-    `Seeded ${userCount} users, ${dealerCount} dealers, ${listingCount} listings.`,
+    `Seeded ${userCount} users, ${dealerCount} dealers, ${listingCount} listings, ${categoryCount} vehicle categories.`,
   );
 }
 

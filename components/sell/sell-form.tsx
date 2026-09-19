@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,10 +28,18 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { slugify } from "@/lib/slug";
+import {
+  partitionPopularMakes,
+  type VehicleMakeOption,
+} from "@/lib/vehicle-makes";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { FormStepper } from "@/components/sell/form-stepper";
@@ -70,11 +78,13 @@ export function SellForm({
   listingId,
   vehicleNumber,
   redirectTo,
+  makes = [],
 }: {
   defaultValues?: Partial<ListingFormInput>;
   listingId?: string;
   vehicleNumber?: number;
   redirectTo?: string;
+  makes?: VehicleMakeOption[];
 } = {}) {
   const router = useRouter();
   const publishLock = useRef(false);
@@ -101,6 +111,33 @@ export function SellForm({
     make: values.make,
     model: values.model,
   });
+  const makeOptions = useMemo(() => {
+    const catalog =
+      makes.length > 0
+        ? makes
+        : COMMON_MAKES.map((name, index) => ({
+            name,
+            slug: slugify(name, "make"),
+            isPopular: true,
+            sortOrder: index + 1,
+          }));
+    const selected = values.make?.trim();
+    if (
+      selected &&
+      !catalog.some((make) => make.name.toLowerCase() === selected.toLowerCase())
+    ) {
+      return [
+        ...catalog,
+        {
+          name: selected,
+          slug: slugify(selected, "make"),
+          isPopular: false,
+          sortOrder: 0,
+        },
+      ];
+    }
+    return catalog;
+  }, [makes, values.make]);
 
   function goTo(next: SellStepId) {
     const nextIndex = SELL_STEPS.findIndex((item) => item.id === next);
@@ -190,24 +227,47 @@ export function SellForm({
                   <FormField
                     control={form.control}
                     name="make"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Make</FormLabel>
-                        <FormControl>
-                          <Input
-                            list="common-makes"
-                            placeholder="Toyota"
-                            {...field}
-                          />
-                        </FormControl>
-                        <datalist id="common-makes">
-                          {COMMON_MAKES.map((make) => (
-                            <option key={make} value={make} />
-                          ))}
-                        </datalist>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const { popular, rest } = partitionPopularMakes(makeOptions);
+                      return (
+                        <FormItem>
+                          <FormLabel>Make</FormLabel>
+                          <SelectField
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select make"
+                          >
+                            {popular.map((make) => (
+                              <SelectItem key={make.slug} value={make.name}>
+                                {make.name}
+                              </SelectItem>
+                            ))}
+                            {popular.length > 0 && rest.length > 0 ? (
+                              <>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                  <SelectLabel className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                                    All makes
+                                  </SelectLabel>
+                                  {rest.map((make) => (
+                                    <SelectItem key={make.slug} value={make.name}>
+                                      {make.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </>
+                            ) : (
+                              rest.map((make) => (
+                                <SelectItem key={make.slug} value={make.name}>
+                                  {make.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectField>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   <FormField
                     control={form.control}

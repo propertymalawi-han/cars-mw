@@ -8,7 +8,7 @@ import {
 } from "@/lib/vehicle-search";
 import type { BodyType } from "@/types";
 
-export const LISTING_CACHE_REVALIDATE_SECONDS = 60;
+export const LISTING_CACHE_REVALIDATE_SECONDS = 120;
 
 export const dealerCardSelect = {
   id: true,
@@ -54,9 +54,35 @@ export type ListingCardRow = Prisma.ListingGetPayload<{
   select: typeof listingCardSelect;
 }>;
 
+export const listingDetailSelect = {
+  id: true,
+  vehicleNumber: true,
+  title: true,
+  make: true,
+  model: true,
+  year: true,
+  price: true,
+  mileage: true,
+  transmission: true,
+  fuelType: true,
+  bodyType: true,
+  district: true,
+  city: true,
+  images: true,
+  description: true,
+  sellerId: true,
+  sellerType: true,
+  status: true,
+  featuredUntil: true,
+  mutedReason: true,
+  deletedAt: true,
+  createdAt: true,
+} satisfies Prisma.ListingSelect;
+
 export function activeListingWhere(now = new Date()): Prisma.ListingWhereInput {
   return {
     status: "active",
+    deletedAt: null,
     OR: [{ sellerType: "dealer" }, { createdAt: { gte: listingExpiryCutoff(now) } }],
   };
 }

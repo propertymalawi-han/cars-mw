@@ -13,8 +13,14 @@ const nextConfig = {
   },
   experimental: {
     serverComponentsExternalPackages: ["@prisma/client", "bcryptjs"],
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
   images: {
+    minimumCacheTTL: 60 * 60 * 24 * 7,
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "https",

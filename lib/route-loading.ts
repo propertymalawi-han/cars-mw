@@ -6,6 +6,8 @@ const SAFETY_TIMEOUT_MS = 15_000;
 type Listener = (visible: boolean) => void;
 
 let pendingNav = false;
+let pendingHref: string | null = null;
+let pendingAnchor: HTMLAnchorElement | null = null;
 let suspenseCount = 0;
 let visible = false;
 let showTimer: number | null = null;
@@ -28,18 +30,46 @@ function clearTimer(id: number | null) {
   return null;
 }
 
+function setDocumentPending(pending: boolean) {
+  if (typeof document === "undefined") return;
+  if (pending) {
+    document.documentElement.setAttribute("data-nav-pending", "true");
+    return;
+  }
+  document.documentElement.removeAttribute("data-nav-pending");
+  pendingAnchor?.removeAttribute("data-nav-pending");
+  pendingAnchor = null;
+  document.querySelectorAll("[data-nav-pending]").forEach((node) => {
+    node.removeAttribute("data-nav-pending");
+  });
+}
+
 function hide() {
   showTimer = clearTimer(showTimer);
   safetyTimer = clearTimer(safetyTimer);
   completeTimer = clearTimer(completeTimer);
   pendingNav = false;
-  if (!visible) return;
+  pendingHref = null;
+  setDocumentPending(false);
+  if (!visible) {
+    emit();
+    return;
+  }
   visible = false;
   emit();
 }
 
 function scheduleShow() {
-  if (visible || showTimer != null) return;
+  setDocumentPending(true);
+  if (visible) return;
+  if (SHOW_DELAY_MS <= 0) {
+    if (!isBusy()) return;
+    showTimer = clearTimer(showTimer);
+    visible = true;
+    emit();
+    return;
+  }
+  if (showTimer != null) return;
   showTimer = window.setTimeout(() => {
     showTimer = null;
     if (!isBusy()) return;
@@ -53,10 +83,12 @@ function armSafety() {
   safetyTimer = window.setTimeout(() => hide(), SAFETY_TIMEOUT_MS);
 }
 
-export function startRouteNavigation() {
+export function startRouteNavigation(href?: string) {
+  if (href && pendingNav && pendingHref === href) return;
   navId += 1;
   completeTimer = clearTimer(completeTimer);
   pendingNav = true;
+  pendingHref = href ?? pendingHref;
   scheduleShow();
   armSafety();
 }
@@ -70,16 +102,15 @@ export function completeRouteNavigation() {
 export function completeRouteNavigationSoon() {
   const id = navId;
   completeTimer = clearTimer(completeTimer);
-  pendingNav = false;
   completeTimer = window.setTimeout(() => {
     completeTimer = null;
     if (id !== navId) return;
-    if (suspenseCount > 0 && document.querySelector("[data-route-loading-signal]")) {
+    if (suspenseCount > 0 || document.querySelector("[data-route-loading-signal]")) {
       return;
     }
     suspenseCount = 0;
     hide();
-  }, 100);
+  }, 120);
 }
 
 export function beginRouteSuspense() {
@@ -113,6 +144,11 @@ function isModifiedClick(event: MouseEvent) {
   return event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0;
 }
 
+function navigationHref(anchor: HTMLAnchorElement) {
+  const url = new URL(anchor.href, window.location.href);
+  return `${url.pathname}${url.search}`;
+}
+
 function isInternalNavigation(anchor: HTMLAnchorElement) {
   if (anchor.target && anchor.target !== "" && anchor.target !== "_self") return false;
   if (anchor.hasAttribute("download")) return false;
@@ -139,7 +175,16 @@ export function installRouteLoadingListeners() {
     const anchor = target.closest("a");
     if (!(anchor instanceof HTMLAnchorElement)) return;
     if (!isInternalNavigation(anchor)) return;
-    startRouteNavigation();
+    const href = navigationHref(anchor);
+    if (pendingNav && pendingHref === href) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    pendingAnchor?.removeAttribute("data-nav-pending");
+    pendingAnchor = anchor;
+    anchor.setAttribute("data-nav-pending", "true");
+    startRouteNavigation(href);
   };
 
   const onPopState = () => {

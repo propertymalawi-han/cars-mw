@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import { ListingImage } from "@/components/listing-image";
 import {
   Carousel,
   CarouselContent,
@@ -61,10 +61,9 @@ export function ListingGallery({
                   compact ? "aspect-[16/9]" : "aspect-[16/9] sm:aspect-[16/10]",
                 )}
               >
-                <Image
+                <ListingImage
                   src={src}
                   alt={`${title} — photo ${index + 1}`}
-                  fill
                   className="object-cover"
                   priority={index === 0}
                   sizes={compact ? "(min-width: 768px) 48rem, 100vw" : "(min-width: 1024px) 60vw, 100vw"}
@@ -97,10 +96,9 @@ export function ListingGallery({
                   : "opacity-80 hover:opacity-100",
               )}
             >
-              <Image
+              <ListingImage
                 src={src}
                 alt=""
-                fill
                 className="object-cover"
                 sizes="88px"
               />

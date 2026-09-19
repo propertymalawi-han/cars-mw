@@ -1,3 +1,5 @@
+import { compareVehicleMakes } from "@/lib/vehicle-makes";
+
 export type MakeModelRef = {
   make: string;
   model: string;
@@ -30,6 +32,8 @@ export type MakeFacet = {
   make: string;
   count: number;
   models: ModelFacet[];
+  isPopular: boolean;
+  sortOrder: number;
 };
 
 export type MakePickerChip = {
@@ -135,6 +139,8 @@ export function aggregateMakeFacets(rows: ListingMakeRow[]): MakeFacet[] {
     .map((make) => ({
       make: make.make,
       count: make.count,
+      isPopular: false,
+      sortOrder: 0,
       models: Array.from(make.models.values())
         .map((model) => ({
           model: model.model,
@@ -149,6 +155,28 @@ export function aggregateMakeFacets(rows: ListingMakeRow[]): MakeFacet[] {
         .sort((a, b) => compareName(a.model, b.model)),
     }))
     .sort((a, b) => compareName(a.make, b.make));
+}
+
+export function applyMakePopularity(
+  facets: MakeFacet[],
+  catalog: { name: string; isPopular: boolean; sortOrder: number }[],
+): MakeFacet[] {
+  const byName = new Map(catalog.map((make) => [make.name.toLowerCase(), make]));
+  return facets
+    .map((facet) => {
+      const meta = byName.get(facet.make.toLowerCase());
+      return {
+        ...facet,
+        isPopular: meta?.isPopular ?? false,
+        sortOrder: meta?.sortOrder ?? 0,
+      };
+    })
+    .sort((a, b) =>
+      compareVehicleMakes(
+        { name: a.make, isPopular: a.isPopular, sortOrder: a.sortOrder },
+        { name: b.make, isPopular: b.isPopular, sortOrder: b.sortOrder },
+      ),
+    );
 }
 
 export function filterMakeFacets(facets: MakeFacet[], query: string): MakeFacet[] {

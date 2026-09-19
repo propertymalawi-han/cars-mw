@@ -42,11 +42,15 @@ import { formatVehicleId } from "@/lib/vehicle-id";
 
 type StatusFilter = "all" | DealerListingRow["status"];
 
-const STATUS_VARIANT: Record<DealerListingRow["status"], "success" | "copper" | "secondary" | "outline"> = {
+const STATUS_VARIANT: Record<
+  DealerListingRow["status"],
+  "success" | "copper" | "secondary" | "outline" | "destructive"
+> = {
   active: "success",
   sold: "copper",
   draft: "secondary",
   expired: "outline",
+  muted: "destructive",
 };
 
 async function readError(response: Response) {
@@ -158,6 +162,7 @@ export function DealerListingsTable({ listings }: { listings: DealerListingRow[]
             <TabsTrigger value="sold">Sold</TabsTrigger>
             <TabsTrigger value="draft">Draft</TabsTrigger>
             <TabsTrigger value="expired">Expired</TabsTrigger>
+            <TabsTrigger value="muted">Muted</TabsTrigger>
           </TabsList>
         </Tabs>
         <Button asChild variant="copper">
@@ -310,34 +315,40 @@ function ListingActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuItem asChild>
-          <Link href={`/sell?listingId=${listing.id}&from=dealer`}>Edit</Link>
-        </DropdownMenuItem>
-        {listing.status !== "sold" ? (
-          <DropdownMenuItem onSelect={onMarkSold}>Mark as sold</DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem onSelect={onDuplicate}>Duplicate</DropdownMenuItem>
-        {featured ? (
-          <DropdownMenuItem onSelect={onUnfeature}>Remove feature</DropdownMenuItem>
+        {listing.status === "muted" ? (
+          <DropdownMenuItem disabled>Muted by CarsMW staff</DropdownMenuItem>
         ) : (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Promote / Feature</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              {FEATURE_PERIOD_DAYS.map((days) => (
-                <DropdownMenuItem key={days} onSelect={() => onFeature(days)}>
-                  Feature for {days} days
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
+          <>
+            <DropdownMenuItem asChild>
+              <Link href={`/sell?listingId=${listing.id}&from=dealer`}>Edit</Link>
+            </DropdownMenuItem>
+            {listing.status !== "sold" ? (
+              <DropdownMenuItem onSelect={onMarkSold}>Mark as sold</DropdownMenuItem>
+            ) : null}
+            <DropdownMenuItem onSelect={onDuplicate}>Duplicate</DropdownMenuItem>
+            {featured ? (
+              <DropdownMenuItem onSelect={onUnfeature}>Remove feature</DropdownMenuItem>
+            ) : (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>Promote / Feature</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {FEATURE_PERIOD_DAYS.map((days) => (
+                    <DropdownMenuItem key={days} onSelect={() => onFeature(days)}>
+                      Feature for {days} days
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={onDelete}
+            >
+              Delete
+            </DropdownMenuItem>
+          </>
         )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-destructive focus:text-destructive"
-          onSelect={onDelete}
-        >
-          Delete
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

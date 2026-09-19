@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { jsonError, requireApiUser } from "@/lib/api-session";
+import { listingOwnerMutationError } from "@/lib/listing-moderation";
 import { listingWriteData } from "@/lib/listing-write";
 import { prisma } from "@/lib/prisma";
 import { listingSchema } from "@/lib/validations/listing";
+import { revalidateListingsCache } from "@/lib/listings-cache";
+import { isStaffRole } from "@/types";
 
 export const runtime = "nodejs";
 
@@ -23,10 +26,17 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     );
   }
 
+  const staff = isStaffRole(user.role);
   const listing = await prisma.listing.findFirst({
-    where: { id: params.id, sellerId: user.id },
+    where: staff
+      ? { id: params.id, deletedAt: null }
+      : { id: params.id, sellerId: user.id, deletedAt: null },
   });
   if (!listing) return jsonError("Listing not found.", 404);
+  if (!staff) {
+    const blocked = listingOwnerMutationError(listing);
+    if (blocked) return blocked;
+  }
 
   const updated = await prisma.listing.update({
     where: { id: listing.id },
@@ -36,5 +46,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     },
   });
 
+  revalidateListingsCache();
   return NextResponse.json({ id: updated.id });
 }

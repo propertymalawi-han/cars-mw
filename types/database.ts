@@ -36,6 +36,10 @@ export type ListingRow = {
   seller_type: SellerType;
   status: ListingStatus;
   featured_until: string | null;
+  muted_reason?: string | null;
+  muted_previous_status?: ListingStatus | null;
+  deleted_at?: string | null;
+  sold_at?: string | null;
   created_at: string;
 };
 
@@ -61,6 +65,9 @@ export type UserRow = {
   account_type: AccountType;
   avatar_url: string | null;
   email_verified: string | null;
+  suspended?: boolean;
+  suspended_reason?: string | null;
+  suspended_at?: string | null;
 };
 
 export type Database = {

@@ -25,6 +25,8 @@ type ListingMapperInput = Pick<
   | "createdAt"
 > & {
   description?: string;
+  mutedReason?: string | null;
+  deletedAt?: Date | null;
 };
 
 type DealerMapperInput = Pick<
@@ -62,6 +64,8 @@ export function mapPrismaListing(row: ListingMapperInput): Listing {
     sellerType: row.sellerType,
     status: row.status,
     featuredUntil: row.featuredUntil?.toISOString() ?? null,
+    mutedReason: row.mutedReason ?? null,
+    deletedAt: row.deletedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
   if (isPrivateListingPastTtl(listing)) {

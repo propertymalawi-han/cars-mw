@@ -12,6 +12,7 @@ enum UserRole {
   user
   dealer
   admin
+  support
 }
 
 enum AccountType {
@@ -29,6 +30,7 @@ enum ListingStatus {
   sold
   draft
   expired
+  muted
 }
 
 enum Transmission {
@@ -58,6 +60,11 @@ enum EnquiryStatus {
   closed
 }
 
+enum CatalogStatus {
+  active
+  muted
+}
+
 model User {
   id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name          String
@@ -67,14 +74,19 @@ model User {
   avatarUrl     String?     @map("avatar_url")
   phone         String?
   accountType   AccountType @default(individual) @map("account_type")
-  role          UserRole    @default(user)
-  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Internal access (admin/support). Marketplace seller/buyer behavior uses accountType.
+  role            UserRole    @default(user)
+  suspended       Boolean     @default(false)
+  suspendedReason String?     @map("suspended_reason")
+  suspendedAt     DateTime?   @map("suspended_at") @db.Timestamptz(6)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  dealer   Dealer?
-  listings Listing[]
-  accounts Account[]
-  sessions Session[]
+  dealer         Dealer?
+  listings       Listing[]
+  accounts       Account[]
+  sessions       Session[]
+  adminAuditLogs AdminAuditLog[]
 
   favourites               Favourite[]
   viewHistory              ViewHistory[]
@@ -83,6 +95,8 @@ model User {
   reviews                  Review[]
   notificationPreferences  NotificationPreference[]
 
+  @@index([suspended])
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -166,11 +180,16 @@ model Listing {
   description  String
   sellerId     String         @map("seller_id") @db.Uuid
   seller       User           @relation(fields: [sellerId], references: [id], onDelete: Restrict)
-  sellerType    SellerType     @map("seller_type")
-  status        ListingStatus  @default(active)
-  featuredUntil DateTime?      @map("featured_until") @db.Timestamptz(6)
-  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sellerType          SellerType     @map("seller_type")
+  status              ListingStatus  @default(active)
+  featuredUntil       DateTime?      @map("featured_until") @db.Timestamptz(6)
+  mutedReason         String?        @map("muted_reason")
+  mutedPreviousStatus ListingStatus? @map("muted_previous_status")
+  deletedAt           DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  /// Set when status first becomes sold; used for time-to-sale analytics.
+  soldAt              DateTime?      @map("sold_at") @db.Timestamptz(6)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   favourites  Favourite[]
   viewHistory ViewHistory[]
@@ -178,6 +197,8 @@ model Listing {
 
   @@index([status, createdAt(sort: Desc)])
   @@index([featuredUntil])
+  @@index([deletedAt])
+  @@index([soldAt])
   @@index([city])
   @@index([make])
   @@index([bodyType])
@@ -287,4 +308,94 @@ model NotificationPreference {
 
   @@unique([userId, key])
   @@map("notification_preferences")
+}
+
+model VehicleCategory {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  slug       String        @unique
+  parentId   String?       @map("parent_id") @db.Uuid
+  parent     VehicleCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children   VehicleCategory[] @relation("CategoryTree")
+  status     CatalogStatus @default(active)
+  mutedUntil DateTime?     @map("muted_until") @db.Timestamptz(6)
+  sortOrder  Int           @default(0) @map("sort_order")
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([parentId, sortOrder])
+  @@index([status, mutedUntil])
+  @@map("vehicle_categories")
+}
+
+model Make {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String        @unique
+  slug       String        @unique
+  isPopular  Boolean       @default(false) @map("is_popular")
+  sortOrder  Int           @default(0) @map("sort_order")
+  status     CatalogStatus @default(active)
+  mutedUntil DateTime?     @map("muted_until") @db.Timestamptz(6)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  models VehicleModel[]
+
+  @@index([isPopular, sortOrder])
+  @@index([status, mutedUntil])
+  @@map("makes")
+}
+
+model VehicleModel {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  makeId     String        @map("make_id") @db.Uuid
+  name       String
+  slug       String
+  bodyType   BodyType      @map("body_type")
+  status     CatalogStatus @default(active)
+  mutedUntil DateTime?     @map("muted_until") @db.Timestamptz(6)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  make     Make      @relation(fields: [makeId], references: [id], onDelete: Cascade)
+  variants Variant[]
+
+  @@unique([makeId, name])
+  @@unique([makeId, slug])
+  @@index([makeId])
+  @@index([status, mutedUntil])
+  @@map("models")
+}
+
+model Variant {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  modelId   String   @map("model_id") @db.Uuid
+  name      String
+  fuelType  FuelType @map("fuel_type")
+  notes     String   @default("")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  model VehicleModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, name])
+  @@index([modelId])
+  @@map("variants")
+}
+
+model AdminAuditLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adminUserId String   @map("admin_user_id") @db.Uuid
+  action      String
+  targetType  String   @map("target_type")
+  targetId    String   @map("target_id")
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  admin User @relation(fields: [adminUserId], references: [id], onDelete: Restrict)
+
+  @@index([adminUserId, createdAt(sort: Desc)])
+  @@index([targetType, targetId])
+  @@index([createdAt(sort: Desc)])
+  @@map("admin_audit_logs")
 }

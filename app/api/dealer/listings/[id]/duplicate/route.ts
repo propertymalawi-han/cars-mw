@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireDealerUser } from "@/lib/dealer";
 import { jsonError } from "@/lib/api-session";
+import { listingOwnerMutationError } from "@/lib/listing-moderation";
 import { prisma } from "@/lib/prisma";
+import { jsonIfSuspended } from "@/lib/user-status";
 
 export const runtime = "nodejs";
 
@@ -11,10 +13,15 @@ export async function POST(_request: Request, { params }: RouteContext) {
   const { user, response } = await requireDealerUser();
   if (!user) return response;
 
+  const suspended = await jsonIfSuspended(user.id);
+  if (suspended) return suspended;
+
   const listing = await prisma.listing.findFirst({
-    where: { id: params.id, sellerId: user.id, sellerType: "dealer" },
+    where: { id: params.id, sellerId: user.id, sellerType: "dealer", deletedAt: null },
   });
   if (!listing) return jsonError("Listing not found.", 404);
+  const blocked = listingOwnerMutationError(listing);
+  if (blocked) return blocked;
 
   const copy = await prisma.listing.create({
     data: {

@@ -12,8 +12,10 @@ export function BrandMark({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-[1.15rem] font-extrabold tracking-tight",
-        light ? "text-primary-foreground" : "text-foreground",
+        "inline-flex items-center gap-1.5 text-[1.15rem] font-extrabold tracking-tight transition-colors",
+        light
+          ? "text-primary-foreground"
+          : "text-foreground group-data-[over-hero]/header:text-white",
         className,
       )}
     >

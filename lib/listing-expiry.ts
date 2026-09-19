@@ -27,6 +27,7 @@ export async function expireStalePrivateListings(sellerId?: string) {
     where: {
       sellerType: "private",
       status: "active",
+      deletedAt: null,
       createdAt: { lt: listingExpiryCutoff() },
       ...(sellerId ? { sellerId } : {}),
     },

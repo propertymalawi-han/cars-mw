@@ -14,9 +14,11 @@ export async function POST(request: Request) {
 
   const listing = await prisma.listing.findUnique({
     where: { id: parsed.data.listingId },
-    select: { id: true },
+    select: { id: true, status: true, deletedAt: true },
   });
-  if (!listing) return jsonError("Listing not found.", 404);
+  if (!listing || listing.deletedAt || listing.status === "muted" || listing.status === "draft") {
+    return jsonError("Listing not found.", 404);
+  }
 
   const existing = await prisma.favourite.findUnique({
     where: {

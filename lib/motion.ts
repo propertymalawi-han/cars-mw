@@ -3,7 +3,7 @@ export const motionMs = {
   overlay: 220,
   overlayExit: 200,
   fade: 150,
-  routeDelay: 300,
+  routeDelay: 0,
 } as const;
 
 export const motionEase = {

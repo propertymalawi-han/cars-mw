@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { startRouteNavigation, subscribeRouteLoading } from "@/lib/route-loading";
 import { SlidersHorizontal } from "lucide-react";
 import { CategoryPicker } from "@/components/search/category-picker";
 import { FilterSidebar } from "@/components/search/filter-sidebar";
@@ -34,6 +35,7 @@ import {
   type CategoryCounts,
   type VehicleCategory,
 } from "@/lib/vehicle-search";
+import type { PublicCategoryGroup } from "@/lib/vehicle-categories";
 
 const FILTER_COUNT_DEBOUNCE_MS = 300;
 
@@ -42,6 +44,7 @@ type VehicleSearchBarProps = {
   categoryCounts: CategoryCounts;
   resultCount: number;
   makeFacets: MakeFacet[];
+  categoryGroups?: PublicCategoryGroup[];
   className?: string;
 };
 
@@ -50,6 +53,7 @@ export function VehicleSearchBar({
   categoryCounts,
   resultCount,
   makeFacets,
+  categoryGroups,
   className,
 }: VehicleSearchBarProps) {
   const router = useRouter();
@@ -65,6 +69,8 @@ export function VehicleSearchBar({
   const [facets, setFacets] = useState<MakeFacet[]>(makeFacets);
   const skipCountFetch = useRef(true);
   const skipFacetFetch = useRef(true);
+  const searchLock = useRef(false);
+  const [navPending, setNavPending] = useState(false);
   const initialKey = filtersKey(initial);
   const draftKey = filtersKey(draft);
   const facetKey = facetFiltersKey(draft);
@@ -73,6 +79,11 @@ export function VehicleSearchBar({
     models: draft.models,
     variants: draft.variants,
   };
+
+  useEffect(() => subscribeRouteLoading((next) => {
+    setNavPending(next);
+    if (!next) searchLock.current = false;
+  }), []);
 
   useEffect(() => {
     setDraft(initial);
@@ -177,9 +188,13 @@ export function VehicleSearchBar({
   }
 
   function applySearch(next: ListingFilters = draft) {
+    if (navPending || searchLock.current) return;
     closePicker();
     setSheetOpen(false);
-    router.push(listingsHref({ ...next, q: undefined, page: 1 }));
+    const href = listingsHref({ ...next, q: undefined, page: 1 });
+    searchLock.current = true;
+    startRouteNavigation(href);
+    router.push(href);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -216,6 +231,7 @@ export function VehicleSearchBar({
               <CategoryPicker
                 value={draft.category}
                 counts={categoryCounts}
+                groups={categoryGroups}
                 onChange={(category: VehicleCategory) => {
                   setExpandedMake(undefined);
                   setExpandedModel(undefined);
@@ -259,7 +275,8 @@ export function VehicleSearchBar({
                 type="submit"
                 variant="copper"
                 size="lg"
-                className="h-11 min-w-0 flex-1 sm:min-w-[11.5rem] sm:flex-none"
+                disabled={navPending}
+                className="h-11 min-w-0 flex-1 rounded-full sm:min-w-[11.5rem] sm:flex-none"
               >
                 {searchActionLabel(liveCount, draft.category)}
               </Button>
