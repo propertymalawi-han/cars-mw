@@ -38,6 +38,16 @@ export const adminUserActionSchema = z.discriminatedUnion("action", [
 
 export type AdminUserAction = z.output<typeof adminUserActionSchema>;
 
+export const adminSiteSettingsSchema = z.object({
+  comingSoonEnabled: z.boolean(),
+  comingSoonMessage: z
+    .string()
+    .trim()
+    .max(280, "Keep the message under 280 characters."),
+});
+
+export type AdminSiteSettingsInput = z.output<typeof adminSiteSettingsSchema>;
+
 const catalogName = z
   .string()
   .trim()

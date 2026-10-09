@@ -32,6 +32,9 @@ export const ADMIN_AUDIT_ACTIONS = [
   "variant.create",
   "variant.update",
   "variant.delete",
+  "site.coming_soon_enable",
+  "site.coming_soon_disable",
+  "site.coming_soon_message",
 ] as const;
 
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
@@ -65,6 +68,9 @@ export const ADMIN_AUDIT_ACTION_LABEL: Record<string, string> = {
   "variant.create": "Variant · Create",
   "variant.update": "Variant · Update",
   "variant.delete": "Variant · Delete",
+  "site.coming_soon_enable": "Site · Coming soon on",
+  "site.coming_soon_disable": "Site · Coming soon off",
+  "site.coming_soon_message": "Site · Coming soon message",
 };
 
 export const ADMIN_AUDIT_TARGET_LABEL: Record<string, string> = {
@@ -75,6 +81,7 @@ export const ADMIN_AUDIT_TARGET_LABEL: Record<string, string> = {
   make: "Make",
   model: "Model",
   variant: "Variant",
+  site: "Site",
 };
 
 export type AdminAuditLogFilters = {

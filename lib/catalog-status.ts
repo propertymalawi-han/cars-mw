@@ -89,6 +89,7 @@ async function loadPublicCategoryGroups(): Promise<PublicCategoryGroup[]> {
         slug: true,
         parentId: true,
         status: true,
+        mutedUntil: true,
         sortOrder: true,
       },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -102,12 +103,11 @@ async function loadPublicCategoryGroups(): Promise<PublicCategoryGroup[]> {
 
 const loadCachedPublicCategoryGroups = unstable_cache(
   loadPublicCategoryGroups,
-  ["public-category-groups"],
+  ["public-category-groups-v2"],
   { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [VEHICLE_CATALOG_CACHE_TAG] },
 );
 
 export async function getPublicCategoryGroups(): Promise<PublicCategoryGroup[]> {
-  await restoreExpiredCatalogMutes();
   return loadCachedPublicCategoryGroups();
 }
 

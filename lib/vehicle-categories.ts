@@ -54,6 +54,7 @@ export type CatalogCategoryRecord = {
   parentId: string | null;
   status: "active" | "muted";
   sortOrder: number;
+  mutedUntil?: Date | string | null;
 };
 
 export function fallbackPublicCategoryGroups(): PublicCategoryGroup[] {
@@ -67,13 +68,19 @@ export function fallbackPublicCategoryGroups(): PublicCategoryGroup[] {
   }));
 }
 
+function muteStillApplies(row: CatalogCategoryRecord, now = Date.now()) {
+  if (row.status !== "muted") return false;
+  if (!row.mutedUntil) return true;
+  return new Date(row.mutedUntil).getTime() > now;
+}
+
 function isMutedInTree(
   row: CatalogCategoryRecord,
   byId: Map<string, CatalogCategoryRecord>,
 ): boolean {
   let current: CatalogCategoryRecord | undefined = row;
   while (current) {
-    if (current.status === "muted") return true;
+    if (muteStillApplies(current)) return true;
     current = current.parentId ? byId.get(current.parentId) : undefined;
   }
   return false;

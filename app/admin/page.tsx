@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { ComingSoonControl } from "@/components/admin/coming-soon-control";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getAdminOverviewStats } from "@/lib/admin-overview";
+import { getSiteSettings } from "@/lib/site-settings";
 import { formatNumber } from "@/lib/currency";
 import { formatRelativeTime } from "@/lib/format-date";
 import type { ListingStatus } from "@/types";
@@ -62,13 +64,21 @@ const STATUS_LABEL: Record<ListingStatus, string> = {
 };
 
 export default async function AdminOverviewPage() {
-  const stats = await getAdminOverviewStats();
+  const [stats, settings] = await Promise.all([
+    getAdminOverviewStats(),
+    getSiteSettings(),
+  ]);
 
   return (
     <div className="space-y-4">
       <AdminPageHeader
         title="Overview"
         description="Marketplace health across listings, users, and enquiries."
+      />
+
+      <ComingSoonControl
+        enabled={settings.comingSoonEnabled}
+        message={settings.comingSoonMessage}
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

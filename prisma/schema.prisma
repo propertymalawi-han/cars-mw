@@ -86,7 +86,8 @@ model User {
   listings       Listing[]
   accounts       Account[]
   sessions       Session[]
-  adminAuditLogs AdminAuditLog[]
+  adminAuditLogs      AdminAuditLog[]
+  siteSettingsUpdated SiteSetting[]
 
   favourites               Favourite[]
   viewHistory              ViewHistory[]
@@ -381,6 +382,17 @@ model Variant {
   @@unique([modelId, name])
   @@index([modelId])
   @@map("variants")
+}
+
+model SiteSetting {
+  id                String   @id
+  comingSoonEnabled Boolean  @default(false) @map("coming_soon_enabled")
+  comingSoonMessage String   @default("") @map("coming_soon_message") @db.VarChar(280)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedById       String?  @map("updated_by_id") @db.Uuid
+  updatedBy         User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("site_settings")
 }
 
 model AdminAuditLog {
