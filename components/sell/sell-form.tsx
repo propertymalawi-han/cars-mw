@@ -39,6 +39,7 @@ import { sameName } from "@/lib/make-picker";
 import type { SellCatalog } from "@/lib/sell-catalog";
 import { clearSellDraft, readSellDraft, saveSellDraft } from "@/lib/sell-draft";
 import { slugify } from "@/lib/slug";
+import { cn } from "@/lib/utils";
 import {
   partitionPopularMakes,
   type VehicleMakeOption,
@@ -76,6 +77,16 @@ import {
 
 const OTHER_MODEL = "__other__";
 const UNSURE_VARIANT = "__unsure__";
+
+const DESCRIPTION_CHIPS = [
+  "Accident-free",
+  "Full service history",
+  "One owner",
+  "New tyres",
+  "Negotiable",
+  "Duty paid",
+  "Viewing welcome",
+] as const;
 
 function titleCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -766,9 +777,38 @@ export function SellForm({
                         <Textarea
                           rows={5}
                           placeholder="Condition, service history, extras, and where the car can be viewed."
+                          className="min-h-24 text-base"
                           {...field}
                         />
                       </FormControl>
+                      <div className="flex flex-wrap gap-2">
+                        {DESCRIPTION_CHIPS.map((phrase) => (
+                          <Button
+                            key={phrase}
+                            type="button"
+                            variant="outline"
+                            className="h-11"
+                            onClick={() => {
+                              const current = field.value ?? "";
+                              if (current.toLowerCase().includes(phrase.toLowerCase())) return;
+                              const trimmed = current.replace(/\s+$/, "");
+                              field.onChange(trimmed ? `${trimmed} ${phrase}` : phrase);
+                            }}
+                          >
+                            {phrase}
+                          </Button>
+                        ))}
+                      </div>
+                      <p
+                        className={cn(
+                          "text-[0.8rem] font-medium",
+                          (field.value ?? "").trim().length >= 20
+                            ? "text-muted-foreground"
+                            : "text-foreground",
+                        )}
+                      >
+                        {(field.value ?? "").trim().length} / 20 characters minimum
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
