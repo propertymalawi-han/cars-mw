@@ -35,6 +35,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { sameName } from "@/lib/make-picker";
+import type { SellCatalog } from "@/lib/sell-catalog";
 import { slugify } from "@/lib/slug";
 import {
   partitionPopularMakes,
@@ -65,8 +67,16 @@ import {
   TRANSMISSIONS,
 } from "@/types";
 
+const OTHER_MODEL = "__other__";
+const UNSURE_VARIANT = "__unsure__";
+
 function titleCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function modelsForMake(catalog: SellCatalog, make: string) {
+  const key = Object.keys(catalog).find((name) => sameName(name, make));
+  return key ? catalog[key] ?? [] : [];
 }
 
 function numberInputValue(value: unknown) {
@@ -79,12 +89,14 @@ export function SellForm({
   vehicleNumber,
   redirectTo,
   makes = [],
+  catalog = {},
 }: {
   defaultValues?: Partial<ListingFormInput>;
   listingId?: string;
   vehicleNumber?: number;
   redirectTo?: string;
   makes?: VehicleMakeOption[];
+  catalog?: SellCatalog;
 } = {}) {
   const router = useRouter();
   const publishLock = useRef(false);
@@ -93,6 +105,8 @@ export function SellForm({
   const [photosUploading, setPhotosUploading] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
+  const [pickingOther, setPickingOther] = useState(false);
+  const [fromCatalog, setFromCatalog] = useState({ bodyType: false, fuelType: false });
 
   const form = useForm<ListingFormInput, unknown, ListingFormValues>({
     resolver: zodResolver(listingSchema),
@@ -110,7 +124,12 @@ export function SellForm({
     year: values.year,
     make: values.make,
     model: values.model,
+    variant: values.variant,
   });
+  const catalogModels = modelsForMake(catalog, values.make ?? "");
+  const matchedModel = catalogModels.find((model) => sameName(model.name, values.model ?? ""));
+  const showOtherModel =
+    pickingOther || (Boolean(values.model?.trim()) && !matchedModel && catalogModels.length > 0);
   const makeOptions = useMemo(() => {
     const catalog =
       makes.length > 0
@@ -138,6 +157,51 @@ export function SellForm({
     }
     return catalog;
   }, [makes, values.make]);
+
+  function clearCatalogFields() {
+    form.setValue("model", "");
+    form.setValue("variant", "");
+    form.setValue("bodyType", "" as ListingFormInput["bodyType"]);
+    form.setValue("fuelType", "" as ListingFormInput["fuelType"]);
+    setPickingOther(false);
+    setFromCatalog({ bodyType: false, fuelType: false });
+  }
+
+  function chooseModel(name: string) {
+    form.setValue("variant", "");
+    form.setValue("fuelType", "" as ListingFormInput["fuelType"]);
+    if (name === OTHER_MODEL) {
+      setPickingOther(true);
+      form.setValue("model", "", { shouldValidate: true, shouldDirty: true });
+      form.setValue("bodyType", "" as ListingFormInput["bodyType"]);
+      setFromCatalog({ bodyType: false, fuelType: false });
+      return;
+    }
+    const model = catalogModels.find((item) => item.name === name);
+    setPickingOther(false);
+    form.setValue("model", name, { shouldValidate: true, shouldDirty: true });
+    if (model) {
+      form.setValue("bodyType", model.bodyType, { shouldValidate: true, shouldDirty: true });
+      setFromCatalog({ bodyType: true, fuelType: false });
+    }
+  }
+
+  function chooseVariant(name: string) {
+    if (name === UNSURE_VARIANT) {
+      form.setValue("variant", "");
+      if (fromCatalog.fuelType) {
+        form.setValue("fuelType", "" as ListingFormInput["fuelType"]);
+      }
+      setFromCatalog((current) => ({ ...current, fuelType: false }));
+      return;
+    }
+    form.setValue("variant", name, { shouldDirty: true });
+    const variant = matchedModel?.variants.find((item) => item.name === name);
+    if (variant) {
+      form.setValue("fuelType", variant.fuelType, { shouldValidate: true, shouldDirty: true });
+      setFromCatalog((current) => ({ ...current, fuelType: true }));
+    }
+  }
 
   function goTo(next: SellStepId) {
     const nextIndex = SELL_STEPS.findIndex((item) => item.id === next);
@@ -234,7 +298,11 @@ export function SellForm({
                           <FormLabel>Make</FormLabel>
                           <SelectField
                             value={field.value}
-                            onChange={field.onChange}
+                            onChange={(value) => {
+                              if (value === field.value) return;
+                              field.onChange(value);
+                              clearCatalogFields();
+                            }}
                             placeholder="Select make"
                           >
                             {popular.map((make) => (
@@ -272,16 +340,95 @@ export function SellForm({
                   <FormField
                     control={form.control}
                     name="model"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Model</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Hilux" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const selectValue = pickingOther
+                        ? OTHER_MODEL
+                        : matchedModel
+                          ? matchedModel.name
+                          : showOtherModel || (catalogModels.length === 0 && values.make)
+                            ? OTHER_MODEL
+                            : undefined;
+                      const otherInput =
+                        Boolean(values.make) && (showOtherModel || catalogModels.length === 0);
+                      return (
+                        <FormItem>
+                          <FormLabel>Model</FormLabel>
+                          {!values.make ? (
+                            <Select disabled>
+                              <FormControl>
+                                <SelectTrigger className="h-11">
+                                  <SelectValue placeholder="Select a make first" />
+                                </SelectTrigger>
+                              </FormControl>
+                            </Select>
+                          ) : catalogModels.length > 0 ? (
+                            <Select value={selectValue} onValueChange={chooseModel}>
+                              {otherInput ? (
+                                <SelectTrigger className="h-11">
+                                  <SelectValue placeholder="Select model" />
+                                </SelectTrigger>
+                              ) : (
+                                <FormControl>
+                                  <SelectTrigger className="h-11">
+                                    <SelectValue placeholder="Select model" />
+                                  </SelectTrigger>
+                                </FormControl>
+                              )}
+                              <SelectContent>
+                                {catalogModels.map((model) => (
+                                  <SelectItem key={model.name} value={model.name}>
+                                    {model.name}
+                                  </SelectItem>
+                                ))}
+                                <SelectSeparator />
+                                <SelectItem value={OTHER_MODEL}>Other / not listed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : null}
+                          {otherInput ? (
+                            <FormControl>
+                              <Input
+                                placeholder="Type the model"
+                                className="h-11"
+                                {...field}
+                              />
+                            </FormControl>
+                          ) : null}
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
+                  {matchedModel && matchedModel.variants.length > 0 ? (
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="listing-variant">Variant</Label>
+                      <Select
+                        value={values.variant?.trim() ? values.variant : UNSURE_VARIANT}
+                        onValueChange={chooseVariant}
+                      >
+                        <SelectTrigger id="listing-variant" className="h-11">
+                          <SelectValue placeholder="Not sure" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={UNSURE_VARIANT}>Not sure</SelectItem>
+                          {matchedModel.variants.map((variant) => (
+                            <SelectItem key={variant.name} value={variant.name}>
+                              {variant.name}
+                            </SelectItem>
+                          ))}
+                          {values.variant &&
+                          !matchedModel.variants.some((variant) =>
+                            sameName(variant.name, values.variant ?? ""),
+                          ) ? (
+                            <SelectItem value={values.variant}>{values.variant}</SelectItem>
+                          ) : null}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[0.8rem] text-muted-foreground">
+                        Optional. Added to the listing title so buyers can search for it.
+                      </p>
+                    </div>
+                  ) : null}
                   <FormField
                     control={form.control}
                     name="year"
@@ -347,8 +494,8 @@ export function SellForm({
                     className="bg-muted/50"
                   />
                   <p className="text-[0.8rem] text-muted-foreground">
-                    Generated from year, make, and model. Buyers will see this on
-                    your listing.
+                    Generated from year, make, model, and variant when you choose one.
+                    Buyers will see this on your listing.
                   </p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -357,10 +504,16 @@ export function SellForm({
                     name="bodyType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Body type</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          Body type
+                          {fromCatalog.bodyType ? <CatalogMark /> : null}
+                        </FormLabel>
                         <SelectField
                           value={field.value}
-                          onChange={field.onChange}
+                          onChange={(value) => {
+                            field.onChange(value);
+                            setFromCatalog((current) => ({ ...current, bodyType: false }));
+                          }}
                           placeholder="Select body type"
                         >
                           {BODY_TYPES.map((bodyType) => (
@@ -399,10 +552,16 @@ export function SellForm({
                     name="fuelType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Fuel</FormLabel>
+                        <FormLabel className="flex items-center gap-2">
+                          Fuel
+                          {fromCatalog.fuelType ? <CatalogMark /> : null}
+                        </FormLabel>
                         <SelectField
                           value={field.value}
-                          onChange={field.onChange}
+                          onChange={(value) => {
+                            field.onChange(value);
+                            setFromCatalog((current) => ({ ...current, fuelType: false }));
+                          }}
                           placeholder="Select fuel type"
                         >
                           {FUEL_TYPES.map((fuelType) => (
@@ -622,6 +781,7 @@ export function SellForm({
                   <ReviewRow label="Title" value={generatedTitle} />
                   <ReviewRow label="Make" value={values.make} />
                   <ReviewRow label="Model" value={values.model} />
+                  <ReviewRow label="Variant" value={values.variant} />
                   <ReviewRow label="Year" value={values.year ? String(values.year) : ""} />
                   <ReviewRow
                     label="Mileage"
@@ -730,6 +890,10 @@ export function SellForm({
       </form>
     </Form>
   );
+}
+
+function CatalogMark() {
+  return <span className="text-[0.7rem] font-normal text-muted-foreground">from catalog</span>;
 }
 
 function SelectField({

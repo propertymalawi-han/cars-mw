@@ -4,12 +4,14 @@ export function buildListingTitle({
   year,
   make,
   model,
+  variant,
 }: {
   year?: unknown;
   make?: unknown;
   model?: unknown;
+  variant?: unknown;
 }): string {
-  return [year, make, model].map(toTitlePart).filter(Boolean).join(" ");
+  return [year, make, model, variant].map(toTitlePart).filter(Boolean).join(" ");
 }
 
 function toTitlePart(part: unknown): string {
