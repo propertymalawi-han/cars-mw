@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { sameName } from "@/lib/make-picker";
 import type { SellCatalog } from "@/lib/sell-catalog";
+import { clearSellDraft, readSellDraft, saveSellDraft } from "@/lib/sell-draft";
 import { slugify } from "@/lib/slug";
 import {
   partitionPopularMakes,
@@ -46,6 +47,9 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { FormStepper } from "@/components/sell/form-stepper";
 import { PhotoUploader } from "@/components/sell/photo-uploader";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { SignInForm } from "@/components/auth/sign-in-form";
+import { SignUpForm } from "@/components/auth/sign-up-form";
 import { VehicleId } from "@/components/vehicle-id";
 import { formatMWK } from "@/lib/currency";
 import { buildListingTitle } from "@/lib/listing-title";
@@ -90,6 +94,10 @@ export function SellForm({
   redirectTo,
   makes = [],
   catalog = {},
+  signedIn = true,
+  googleEnabled = false,
+  authTab = "sign-in",
+  promptAuth = false,
 }: {
   defaultValues?: Partial<ListingFormInput>;
   listingId?: string;
@@ -97,16 +105,23 @@ export function SellForm({
   redirectTo?: string;
   makes?: VehicleMakeOption[];
   catalog?: SellCatalog;
+  signedIn?: boolean;
+  googleEnabled?: boolean;
+  authTab?: "sign-in" | "sign-up";
+  promptAuth?: boolean;
 } = {}) {
   const router = useRouter();
   const publishLock = useRef(false);
   const [step, setStep] = useState<SellStepId>("vehicle");
-  const [highest, setHighest] = useState<SellStepId>(listingId ? "review" : "vehicle");
+  const [highest, setHighest] = useState<SellStepId>(
+    listingId ? "review" : signedIn ? "vehicle" : "price",
+  );
   const [photosUploading, setPhotosUploading] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
   const [pickingOther, setPickingOther] = useState(false);
   const [fromCatalog, setFromCatalog] = useState({ bodyType: false, fuelType: false });
+  const [needsAuth, setNeedsAuth] = useState(promptAuth && !signedIn);
 
   const form = useForm<ListingFormInput, unknown, ListingFormValues>({
     resolver: zodResolver(listingSchema),
@@ -117,9 +132,44 @@ export function SellForm({
   const { isSubmitting } = form.formState;
   const publishing = isSubmitting || published;
 
+  useEffect(() => {
+    if (listingId) return;
+    const draft = readSellDraft();
+    if (!draft?.values) return;
+    const current = form.getValues();
+    form.reset({
+      ...listingFormDefaults,
+      ...current,
+      ...draft.values,
+      sellerName: current.sellerName || draft.values.sellerName || "",
+      sellerEmail: current.sellerEmail || draft.values.sellerEmail || "",
+      phone: current.phone || draft.values.phone || "",
+      images: draft.values.images?.length ? draft.values.images : current.images,
+    });
+    if (signedIn && draft.resumeStep) {
+      setStep(draft.resumeStep);
+      setHighest(draft.resumeStep);
+    } else if (!signedIn && draft.resumeStep === "price") {
+      setStep("price");
+    }
+  }, [form, listingId, signedIn]);
+
   const currentIndex = SELL_STEPS.findIndex((item) => item.id === step);
   const isLast = currentIndex === SELL_STEPS.length - 1;
   const values = form.watch();
+
+  useEffect(() => {
+    if (listingId) return;
+    if (published) {
+      clearSellDraft();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      saveSellDraft(form.getValues(), signedIn ? step : undefined);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [form, listingId, published, signedIn, step, values]);
+
   const generatedTitle = buildListingTitle({
     year: values.year,
     make: values.make,
@@ -213,12 +263,27 @@ export function SellForm({
     setPublishError(null);
   }
 
+  async function requestStep(next: SellStepId) {
+    if (signedIn || next === "vehicle" || next === "price") {
+      goTo(next);
+      return;
+    }
+    const vehicleFields = SELL_STEPS[0]?.fields ?? [];
+    const vehicleValid = await form.trigger(vehicleFields);
+    if (!vehicleValid) {
+      goTo("vehicle");
+      return;
+    }
+    saveSellDraft(form.getValues(), "photos");
+    setNeedsAuth(true);
+  }
+
   async function handleNext() {
     const fields = SELL_STEPS[currentIndex]?.fields ?? [];
     const valid = fields.length === 0 ? true : await form.trigger(fields);
     if (!valid || photosUploading) return;
     const next = SELL_STEPS[currentIndex + 1];
-    if (next) goTo(next.id);
+    if (next) requestStep(next.id);
   }
 
   function handleBack() {
@@ -250,12 +315,52 @@ export function SellForm({
         setPublishError(json.error ?? "Could not publish the listing.");
         return;
       }
+      clearSellDraft();
       setPublished(true);
       router.replace(redirectTo ?? "/account/listings");
     } catch {
       publishLock.current = false;
       setPublishError("Could not publish the listing.");
     }
+  }
+
+  if (!signedIn && needsAuth) {
+    return (
+      <div className="space-y-4">
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-11 px-0"
+          onClick={() => setNeedsAuth(false)}
+        >
+          Back to your listing
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          Sign in to add photos. Your vehicle and price stay on this phone, then you’ll
+          continue at the photos step.
+        </p>
+        <AuthShell
+          embedded
+          wide={authTab === "sign-up"}
+          tab={authTab}
+          returnTo="/sell"
+          signInHref="/sell?auth=sign-in"
+          signUpHref="/sell?auth=sign-up"
+          title={authTab === "sign-up" ? "Create an account" : "Sign in to add photos"}
+          description={
+            authTab === "sign-up"
+              ? "Join CarsMW with Google, or with email. We’ll send a confirmation link before you can sign in."
+              : "Use your email and password, or continue with Google. You’ll come back to your photos."
+          }
+        >
+          {authTab === "sign-up" ? (
+            <SignUpForm returnTo="/sell" googleEnabled={googleEnabled} />
+          ) : (
+            <SignInForm returnTo="/sell" googleEnabled={googleEnabled} />
+          )}
+        </AuthShell>
+      </div>
+    );
   }
 
   return (
@@ -272,11 +377,16 @@ export function SellForm({
         }}
         className="space-y-6"
       >
+        {!signedIn ? (
+          <p className="text-sm text-muted-foreground">
+            Add the vehicle and a price now. You’ll sign in before uploading photos.
+          </p>
+        ) : null}
         <Tabs
           value={step}
-          onValueChange={(value) => goTo(value as SellStepId)}
+          onValueChange={(value) => void requestStep(value as SellStepId)}
         >
-          <FormStepper current={step} highest={highest} onStepSelect={goTo} />
+          <FormStepper current={step} highest={highest} onStepSelect={(next) => void requestStep(next)} />
 
           <Card className="mt-6 shadow-sm">
             <TabsContent value="vehicle" className="mt-0">
