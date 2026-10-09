@@ -98,13 +98,18 @@ function modelsForMake(catalog: SellCatalog, make: string) {
   return key ? catalog[key] ?? [] : [];
 }
 
-function numberInputValue(value: unknown) {
-  return typeof value === "number" && !Number.isNaN(value) ? value : "";
-}
-
 function formatThousands(value: unknown) {
   if (typeof value !== "number" || Number.isNaN(value)) return "";
   return Math.trunc(value).toLocaleString("en-US");
+}
+
+function scrollToFirstError() {
+  window.setTimeout(() => {
+    const target = document.querySelector<HTMLElement>(
+      "[aria-invalid='true'], [id$='-form-item-message']",
+    );
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 50);
 }
 
 function groupedIntegerChange(raw: string) {
@@ -204,6 +209,11 @@ export function SellForm({
       router.replace(redirectTo ?? "/account/listings");
     }
   }, [published, publishedListing, redirectTo, router]);
+
+  useEffect(() => {
+    if (!publishError) return;
+    document.getElementById("publish-error")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [publishError]);
 
   const generatedTitle = buildListingTitle({
     year: values.year,
@@ -317,6 +327,7 @@ export function SellForm({
     const vehicleValid = await form.trigger(vehicleFields);
     if (!vehicleValid) {
       goTo("vehicle");
+      scrollToFirstError();
       return;
     }
     saveSellDraft(form.getValues(), "photos");
@@ -326,7 +337,10 @@ export function SellForm({
   async function handleNext() {
     const fields = SELL_STEPS[currentIndex]?.fields ?? [];
     const valid = fields.length === 0 ? true : await form.trigger(fields);
-    if (!valid || photosUploading) return;
+    if (!valid || photosUploading) {
+      if (!valid) scrollToFirstError();
+      return;
+    }
     const next = SELL_STEPS[currentIndex + 1];
     if (next) requestStep(next.id);
   }
@@ -452,9 +466,11 @@ export function SellForm({
             void handleNext();
             return;
           }
-          void form.handleSubmit(onPublish)();
+          void form.handleSubmit(onPublish, () => {
+            scrollToFirstError();
+          })();
         }}
-        className="space-y-6"
+        className="space-y-6 [&_[aria-invalid=true]]:scroll-mt-24 [&_[id$='-form-item-message']]:scroll-mt-24"
       >
         {!signedIn ? (
           <p className="text-sm text-muted-foreground">
@@ -626,15 +642,16 @@ export function SellForm({
                         <FormLabel>Year</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             inputMode="numeric"
+                            autoComplete="off"
                             placeholder="2018"
-                            value={numberInputValue(field.value)}
-                            onChange={(event) =>
-                              field.onChange(
-                                event.target.value === "" ? "" : event.target.valueAsNumber,
-                              )
+                            className="h-11"
+                            value={
+                              typeof field.value === "number" && !Number.isNaN(field.value)
+                                ? String(field.value)
+                                : ""
                             }
+                            onChange={(event) => field.onChange(groupedIntegerChange(event.target.value))}
                             onBlur={field.onBlur}
                             name={field.name}
                             ref={field.ref}
@@ -1095,7 +1112,9 @@ export function SellForm({
                 </ReviewSection>
 
                 {publishError ? (
-                  <p className="text-sm font-medium text-destructive">{publishError}</p>
+                  <p id="publish-error" className="scroll-mt-24 text-sm font-medium text-destructive">
+                    {publishError}
+                  </p>
                 ) : null}
               </CardContent>
             </TabsContent>
