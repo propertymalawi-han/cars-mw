@@ -18,11 +18,15 @@ const EMPTY_SETTINGS: SiteSettings = {
   comingSoonMessage: "",
 };
 
-const SETTINGS_TTL_MS = 3_000;
+const FRESH_FOR_MS = 15_000;
 
 let cachedSettings: { at: number; value: SiteSettings } | null = null;
+let settingsGeneration = 0;
+let refreshPromise: Promise<void> | null = null;
+let refreshGeneration = -1;
 
 export function invalidateSiteSettingsCache() {
+  settingsGeneration += 1;
   cachedSettings = null;
 }
 
@@ -46,16 +50,35 @@ async function readSiteSettings(): Promise<SiteSettings | null> {
   }
 }
 
+function refreshSiteSettings(): Promise<void> {
+  if (refreshPromise && refreshGeneration === settingsGeneration) return refreshPromise;
+
+  const generation = settingsGeneration;
+  let pending: Promise<void>;
+  pending = (async () => {
+    const value = await readSiteSettings();
+    if (generation !== settingsGeneration || !value) return;
+    cachedSettings = { at: Date.now(), value };
+  })().finally(() => {
+    if (refreshPromise === pending) refreshPromise = null;
+  });
+
+  refreshGeneration = generation;
+  refreshPromise = pending;
+  return pending;
+}
+
 export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
-  if (cachedSettings && Date.now() - cachedSettings.at < SETTINGS_TTL_MS) {
-    return cachedSettings.value;
+  const snapshot = cachedSettings;
+  if (snapshot) {
+    if (Date.now() - snapshot.at >= FRESH_FOR_MS) {
+      void refreshSiteSettings();
+    }
+    return snapshot.value;
   }
 
-  const value = await readSiteSettings();
-  if (!value) return cachedSettings?.value ?? EMPTY_SETTINGS;
-
-  cachedSettings = { at: Date.now(), value };
-  return value;
+  await refreshSiteSettings();
+  return cachedSettings?.value ?? EMPTY_SETTINGS;
 });
 
 export function comingSoonCopy(message: string) {
