@@ -34,8 +34,31 @@ function comingSoonRewrite(req: NextRequest) {
   return response;
 }
 
-const protectRoutes = auth((req) => {
+// The second parameter must be NextFetchEvent so NextAuth selects its middleware
+// overload. Without it, the callback is typed as an App Router handler and the
+// build rejects NextFetchEvent (it has no `params`).
+export default auth(async (req, _event: NextFetchEvent) => {
   const pathname = req.nextUrl.pathname;
+
+  if (pathname === "/coming-soon") {
+    const enabled = await isComingSoonEnabled();
+    if (!enabled) {
+      return NextResponse.redirect(new URL("/", req.nextUrl.origin));
+    }
+    return NextResponse.next();
+  }
+
+  if (!isComingSoonExemptPath(pathname) && (await isComingSoonEnabled())) {
+    if (isStaffRole(req.auth?.user?.role)) {
+      return NextResponse.next();
+    }
+    return comingSoonRewrite(req);
+  }
+
+  if (!isProtectedPath(pathname)) {
+    return NextResponse.next();
+  }
+
   const isLoggedIn = Boolean(req.auth?.user);
 
   if (isAdminPath(pathname)) {
@@ -59,35 +82,6 @@ const protectRoutes = auth((req) => {
   signInUrl.searchParams.set("returnTo", returnTo);
   return NextResponse.redirect(signInUrl);
 });
-
-const holdPublicSite = auth((req) => {
-  if (isStaffRole(req.auth?.user?.role)) {
-    return NextResponse.next();
-  }
-  return comingSoonRewrite(req);
-});
-
-export default async function middleware(req: NextRequest, event: NextFetchEvent) {
-  const pathname = req.nextUrl.pathname;
-
-  if (pathname === "/coming-soon") {
-    const enabled = await isComingSoonEnabled();
-    if (!enabled) {
-      return NextResponse.redirect(new URL("/", req.nextUrl.origin));
-    }
-    return NextResponse.next();
-  }
-
-  if (!isComingSoonExemptPath(pathname) && (await isComingSoonEnabled())) {
-    return holdPublicSite(req, event);
-  }
-
-  if (isProtectedPath(pathname)) {
-    return protectRoutes(req, event);
-  }
-
-  return NextResponse.next();
-}
 
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
