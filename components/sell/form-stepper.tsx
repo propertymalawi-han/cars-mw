@@ -83,7 +83,7 @@ export function FormStepper({
               </span>
               <span
                 className={cn(
-                  "hidden text-[0.72rem] font-semibold sm:block",
+                  "max-w-[4.25rem] text-center text-[0.62rem] font-semibold leading-tight sm:max-w-none sm:text-[0.72rem]",
                   isCurrent ? "text-foreground" : "text-muted-foreground",
                 )}
               >

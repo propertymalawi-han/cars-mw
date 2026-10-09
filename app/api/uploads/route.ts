@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
+import { requireApiUser } from "@/lib/api-session";
 import { UploadError, uploadListingPhoto } from "@/lib/uploads";
+import { jsonIfSuspended } from "@/lib/user-status";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const { user, response } = await requireApiUser();
+  if (!user) return response;
+
+  const suspended = await jsonIfSuspended(user.id);
+  if (suspended) return suspended;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file");

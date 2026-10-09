@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
-import { AuthShell } from "@/components/auth/auth-shell";
-import { SignInForm } from "@/components/auth/sign-in-form";
-import { SignUpForm } from "@/components/auth/sign-up-form";
 import { EditListingSummary } from "@/components/sell/edit-listing-summary";
 import { SellForm } from "@/components/sell/sell-form";
 import { getListingById, getVehicleMakes } from "@/lib/data";
+import { isGoogleAuthEnabled } from "@/lib/auth-env";
 import { variantFromTitle } from "@/lib/make-picker";
 import { prisma } from "@/lib/prisma";
 import { mapPrismaListing } from "@/lib/prisma-mappers";
@@ -28,18 +26,6 @@ type SellPageProps = {
   searchParams: { listingId?: string; from?: string; auth?: string };
 };
 
-function sellPath(
-  searchParams: SellPageProps["searchParams"],
-  authTab?: "sign-in" | "sign-up",
-) {
-  const params = new URLSearchParams();
-  if (searchParams.listingId) params.set("listingId", searchParams.listingId);
-  if (searchParams.from) params.set("from", searchParams.from);
-  if (authTab === "sign-up") params.set("auth", "sign-up");
-  const query = params.toString();
-  return query ? `/sell?${query}` : "/sell";
-}
-
 export default async function SellPage({ searchParams }: SellPageProps) {
   const session = await auth();
   const fromDealer = searchParams.from === "dealer";
@@ -52,8 +38,8 @@ export default async function SellPage({ searchParams }: SellPageProps) {
       : "/account/listings";
 
   if (!session?.user) {
-    const tab = searchParams.auth === "sign-up" ? "sign-up" : "sign-in";
-    const returnTo = sellPath(searchParams);
+    const [makes, catalog] = await Promise.all([getVehicleMakes(), getSellCatalog()]);
+    const promptAuth = searchParams.auth === "sign-in" || searchParams.auth === "sign-up";
 
     return (
       <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
@@ -62,29 +48,19 @@ export default async function SellPage({ searchParams }: SellPageProps) {
             Sell your car
           </h1>
           <p className="text-muted-foreground">
-            Sign in or create an account to list your car. After you publish, you can
-            manage it from your listings dashboard.
+            Start with the vehicle and your price. Sign in when you add photos — your
+            progress stays on this phone.
           </p>
         </div>
-        <AuthShell
-          embedded
-          wide={tab === "sign-up"}
-          tab={tab}
-          signInHref={returnTo}
-          signUpHref={sellPath(searchParams, "sign-up")}
-          title={tab === "sign-up" ? "Create an account" : "Sign in"}
-          description={
-            tab === "sign-up"
-              ? "Join CarsMW with Google, or with email. We’ll send a confirmation link before you can sign in."
-              : "Use your email and password, or continue with Google."
-          }
-        >
-          {tab === "sign-up" ? (
-            <SignUpForm returnTo={returnTo} />
-          ) : (
-            <SignInForm returnTo={returnTo} />
-          )}
-        </AuthShell>
+        <SellForm
+          signedIn={false}
+          promptAuth={promptAuth}
+          authTab={searchParams.auth === "sign-up" ? "sign-up" : "sign-in"}
+          googleEnabled={isGoogleAuthEnabled()}
+          defaultValues={listingFormDefaults}
+          makes={makes}
+          catalog={catalog}
+        />
       </div>
     );
   }
@@ -204,6 +180,7 @@ export default async function SellPage({ searchParams }: SellPageProps) {
         redirectTo={listingsHref}
         makes={makes}
         catalog={catalog}
+        signedIn={true}
       />
     </div>
   );
