@@ -6,6 +6,7 @@ import { SellForm } from "@/components/sell/sell-form";
 import { getListingById, getVehicleMakes } from "@/lib/data";
 import { isGoogleAuthEnabled } from "@/lib/auth-env";
 import { variantFromTitle } from "@/lib/make-picker";
+import { formatPhoneInput } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { mapPrismaListing } from "@/lib/prisma-mappers";
 import { getSellCatalog } from "@/lib/sell-catalog";
@@ -73,6 +74,19 @@ export default async function SellPage({ searchParams }: SellPageProps) {
   let listingId: string | undefined;
   let editingDraft = false;
   let editingListing: Listing | undefined;
+  let profilePhone = "";
+
+  if (process.env.DATABASE_URL) {
+    try {
+      const profile = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { phone: true },
+      });
+      profilePhone = profile?.phone ?? "";
+    } catch (error) {
+      console.error("Failed to load profile phone", error);
+    }
+  }
 
   const { data: dealer } = await getSupabase()
     .from("dealers")
@@ -84,9 +98,10 @@ export default async function SellPage({ searchParams }: SellPageProps) {
     defaultValues = {
       ...defaultValues,
       sellerName: dealer.name || defaultValues.sellerName,
-      phone: dealer.phone || "",
     };
   }
+
+  defaultValues.phone = formatPhoneInput(dealer?.phone || profilePhone || "");
 
   if (searchParams.listingId) {
     const listing = process.env.DATABASE_URL

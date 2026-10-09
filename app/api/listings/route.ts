@@ -3,6 +3,7 @@ import { jsonError, requireApiUser } from "@/lib/api-session";
 import { findRecentDuplicateListing, listingWriteData } from "@/lib/listing-write";
 import { buildListingTitle } from "@/lib/listing-title";
 import { prisma } from "@/lib/prisma";
+import { saveProfilePhone } from "@/lib/seller-phone";
 import { getSupabase } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 import { listingSchema } from "@/lib/validations/listing";
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
 
       const existing = await findRecentDuplicateListing(user.id, parsed.data);
       if (existing) {
+        await saveProfilePhone(user.id, parsed.data.phone, user.accountType);
         return NextResponse.json({ id: existing.id });
       }
     }
@@ -54,6 +56,7 @@ export async function POST(request: Request) {
         },
       });
       revalidateListingsCache();
+      await saveProfilePhone(user.id, parsed.data.phone, user.accountType);
       return NextResponse.json({ id: listing.id });
     }
 
@@ -73,6 +76,7 @@ export async function POST(request: Request) {
     }
 
     revalidateListingsCache();
+    await saveProfilePhone(user.id, parsed.data.phone, user.accountType);
     return NextResponse.json({ id: data });
   } catch (error) {
     console.error("Failed to publish listing", error);

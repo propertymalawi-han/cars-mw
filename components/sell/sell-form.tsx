@@ -52,7 +52,10 @@ import { SignInForm } from "@/components/auth/sign-in-form";
 import { SignUpForm } from "@/components/auth/sign-up-form";
 import { VehicleId } from "@/components/vehicle-id";
 import { formatMWK } from "@/lib/currency";
+import { cityForDistrict } from "@/lib/malawi-places";
 import { buildListingTitle } from "@/lib/listing-title";
+import { formatPhoneInput } from "@/lib/phone";
+import { estimateValuation } from "@/lib/valuation";
 import {
   listingFormDefaults,
   listingSchema,
@@ -85,6 +88,16 @@ function modelsForMake(catalog: SellCatalog, make: string) {
 
 function numberInputValue(value: unknown) {
   return typeof value === "number" && !Number.isNaN(value) ? value : "";
+}
+
+function formatThousands(value: unknown) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "";
+  return Math.trunc(value).toLocaleString("en-US");
+}
+
+function groupedIntegerChange(raw: string) {
+  const digits = raw.replace(/\D/g, "");
+  return digits === "" ? "" : Number(digits);
 }
 
 export function SellForm({
@@ -180,6 +193,16 @@ export function SellForm({
   const matchedModel = catalogModels.find((model) => sameName(model.name, values.model ?? ""));
   const showOtherModel =
     pickingOther || (Boolean(values.model?.trim()) && !matchedModel && catalogModels.length > 0);
+  const priceSuggestion = useMemo(() => {
+    if (typeof values.year !== "number" || typeof values.mileage !== "number") return null;
+    if (!values.make?.trim() || !values.model?.trim()) return null;
+    return estimateValuation({
+      make: values.make,
+      model: values.model,
+      year: values.year,
+      mileage: values.mileage,
+    });
+  }, [values.make, values.mileage, values.model, values.year]);
   const makeOptions = useMemo(() => {
     const catalog =
       makes.length > 0
@@ -573,16 +596,12 @@ export function SellForm({
                         <FormLabel>Mileage (km)</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             inputMode="numeric"
-                            min={0}
-                            placeholder="86400"
-                            value={numberInputValue(field.value)}
-                            onChange={(event) =>
-                              field.onChange(
-                                event.target.value === "" ? "" : event.target.valueAsNumber,
-                              )
-                            }
+                            autoComplete="off"
+                            placeholder="86,400"
+                            className="h-11"
+                            value={formatThousands(field.value)}
+                            onChange={(event) => field.onChange(groupedIntegerChange(event.target.value))}
                             onBlur={field.onBlur}
                             name={field.name}
                             ref={field.ref}
@@ -692,7 +711,13 @@ export function SellForm({
                         <FormLabel>District</FormLabel>
                         <SelectField
                           value={field.value}
-                          onChange={field.onChange}
+                          onChange={(value) => {
+                            field.onChange(value);
+                            const city = cityForDistrict(value);
+                            if (city) {
+                              form.setValue("city", city, { shouldValidate: true, shouldDirty: true });
+                            }
+                          }}
                           placeholder="Select a district"
                         >
                           {MALAWI_DISTRICTS.map((district) => (
@@ -701,6 +726,10 @@ export function SellForm({
                             </SelectItem>
                           ))}
                         </SelectField>
+                        <FormDescription>
+                          Choosing a district sets the city. Change the city below if buyers
+                          should see a different one.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -784,30 +813,49 @@ export function SellForm({
                   control={form.control}
                   name="price"
                   render={({ field }) => (
-                    <FormItem className="max-w-sm">
+                    <FormItem>
                       <FormLabel>Price (MWK)</FormLabel>
                       <FormControl>
                         <Input
-                          type="number"
                           inputMode="numeric"
-                          min={1}
-                          placeholder="18500000"
-                          value={numberInputValue(field.value)}
-                          onChange={(event) =>
-                            field.onChange(
-                              event.target.value === "" ? "" : event.target.valueAsNumber,
-                            )
-                          }
+                          autoComplete="off"
+                          placeholder="18,500,000"
+                          className="h-11"
+                          value={formatThousands(field.value)}
+                          onChange={(event) => field.onChange(groupedIntegerChange(event.target.value))}
                           onBlur={field.onBlur}
                           name={field.name}
                           ref={field.ref}
                         />
                       </FormControl>
-                      <FormDescription>
+                      <p className="text-base font-semibold">
                         {typeof field.value === "number" && field.value > 0
                           ? formatMWK(field.value)
                           : "Enter a whole amount, without tambala."}
-                      </FormDescription>
+                      </p>
+                      {priceSuggestion ? (
+                        <div className="space-y-3 rounded-lg border bg-muted/40 p-3">
+                          <p className="text-sm text-muted-foreground">
+                            Suggested for this {priceSuggestion.make} {priceSuggestion.model}:{" "}
+                            <span className="font-semibold text-foreground">
+                              {formatMWK(priceSuggestion.low)} – {formatMWK(priceSuggestion.high)}
+                            </span>
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-11"
+                            onClick={() =>
+                              form.setValue("price", priceSuggestion.midpoint, {
+                                shouldValidate: true,
+                                shouldDirty: true,
+                              })
+                            }
+                          >
+                            Use this
+                          </Button>
+                        </div>
+                      ) : null}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -829,9 +877,7 @@ export function SellForm({
                   render={({ field }) => (
                     <FormItem className="sm:col-span-2">
                       <FormLabel>Your name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Yankho Moyo" {...field} />
-                      </FormControl>
+                      <p className="text-base">{field.value || "Add your name in your profile"}</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -840,11 +886,11 @@ export function SellForm({
                   control={form.control}
                   name="sellerEmail"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="sm:col-span-2">
                       <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="you@email.com" {...field} />
-                      </FormControl>
+                      <p className="break-all text-base">
+                        {field.value || "Add your email in your profile"}
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -856,7 +902,17 @@ export function SellForm({
                     <FormItem>
                       <FormLabel>Phone / WhatsApp</FormLabel>
                       <FormControl>
-                        <Input placeholder="+265 888 000 000" {...field} />
+                        <Input
+                          inputMode="tel"
+                          autoComplete="tel"
+                          placeholder="+265 888 000 000"
+                          className="h-11"
+                          value={field.value ?? ""}
+                          onChange={(event) => field.onChange(formatPhoneInput(event.target.value))}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
