@@ -5,21 +5,20 @@ import { BrandGrid } from "@/components/marketing/brand-grid";
 import { LocationGrid } from "@/components/marketing/location-grid";
 import { SellPanel } from "@/components/marketing/sell-panel";
 import { ToolsSection } from "@/components/marketing/tools-section";
-import { getHomeFeaturedSections, searchListings } from "@/lib/data";
-import { defaultListingFilters } from "@/lib/listing-filters";
+import { getHomeFeaturedSections } from "@/lib/data";
 
 export const revalidate = 120;
 
-export default async function MarketingPage() {
-  const [sections] = await Promise.all([
-    getHomeFeaturedSections(),
-    searchListings(defaultListingFilters()),
-  ]);
+async function HomeFeatured() {
+  const sections = await getHomeFeaturedSections();
+  return <FeaturedListings sections={sections} />;
+}
 
+export default function MarketingPage() {
   return (
     <>
       <Hero />
-      <FeaturedListings sections={sections} />
+      <HomeFeatured />
       <SellPanel />
       <BrandGrid />
       <LocationGrid />

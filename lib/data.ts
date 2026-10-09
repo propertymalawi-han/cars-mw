@@ -33,6 +33,7 @@ import {
   type ListingMakeRow,
   type MakeFacet,
 } from "@/lib/make-picker";
+import { catalogIsActive } from "@/lib/catalog-status";
 import { slugify } from "@/lib/slug";
 import {
   compareVehicleMakes,
@@ -622,16 +623,13 @@ function fallbackVehicleMakes(): VehicleMakeOption[] {
 export async function getVehicleMakes(): Promise<VehicleMakeOption[]> {
   if (!usePrisma()) return fallbackVehicleMakes();
 
-  const { restoreExpiredCatalogMutes } = await import("@/lib/catalog-status");
-  await restoreExpiredCatalogMutes();
-
   const rows = await prisma.make.findMany({
-    where: { status: "active" },
-    select: { name: true, slug: true, isPopular: true, sortOrder: true },
+    select: { name: true, slug: true, isPopular: true, sortOrder: true, status: true, mutedUntil: true },
   });
-  if (rows.length === 0) return fallbackVehicleMakes();
+  const active = rows.filter((row) => catalogIsActive(row.status, row.mutedUntil));
+  if (active.length === 0) return fallbackVehicleMakes();
 
-  return rows
+  return active
     .map((row) => ({
       name: row.name,
       slug: row.slug,
@@ -724,11 +722,9 @@ const loadCachedMakeModelFacets = unstable_cache(
   { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [LISTINGS_CACHE_TAG] },
 );
 
-export async function getMakeModelFacets(filters: ListingFilters): Promise<MakeFacet[]> {
-  const { restoreExpiredCatalogMutes } = await import("@/lib/catalog-status");
-  await restoreExpiredCatalogMutes();
+export const getMakeModelFacets = cache(async (filters: ListingFilters): Promise<MakeFacet[]> => {
   return loadCachedMakeModelFacets(facetFiltersKey(filters));
-}
+});
 
 export type ListingSearchResult = {
   listings: Listing[];

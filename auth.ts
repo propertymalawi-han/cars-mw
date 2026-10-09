@@ -9,7 +9,73 @@ import { isUserSuspended } from "@/lib/user-status";
 import { signInSchema } from "@/lib/validations/auth";
 import type { AccountType, UserRole } from "@/types";
 
-const ROLE_REFRESH_MS = 30_000;
+const ROLE_REFRESH_MS = 5 * 60_000;
+
+type AccountSnapshot = {
+  id: string;
+  role: UserRole;
+  accountType: AccountType;
+  avatarUrl: string | null;
+  name: string | null;
+};
+
+const accountCache = new Map<string, { at: number; user: AccountSnapshot | null }>();
+const accountInflight = new Map<string, Promise<AccountSnapshot | null>>();
+
+function accountCacheKey(id?: string, email?: string) {
+  if (id) return `id:${id}`;
+  if (email) return `email:${email.toLowerCase()}`;
+  return "";
+}
+
+function loadAccountSnapshot(id?: string, email?: string) {
+  const key = accountCacheKey(id, email);
+  if (!key) return Promise.resolve(null);
+
+  const cached = accountCache.get(key);
+  if (cached && Date.now() - cached.at < ROLE_REFRESH_MS) {
+    return Promise.resolve(cached.user);
+  }
+
+  const pending = accountInflight.get(key);
+  if (pending) return pending;
+
+  const request = prisma.user
+    .findFirst({
+      where:
+        email && id
+          ? { OR: [{ id }, { email: email.toLowerCase() }] }
+          : email
+            ? { email: email.toLowerCase() }
+            : { id },
+      select: {
+        id: true,
+        role: true,
+        accountType: true,
+        avatarUrl: true,
+        name: true,
+      },
+    })
+    .then((dbUser) => {
+      const user: AccountSnapshot | null = dbUser
+        ? {
+            id: dbUser.id,
+            role: dbUser.role as UserRole,
+            accountType: dbUser.accountType as AccountType,
+            avatarUrl: dbUser.avatarUrl,
+            name: dbUser.name,
+          }
+        : null;
+      accountCache.set(key, { at: Date.now(), user });
+      return user;
+    })
+    .finally(() => {
+      accountInflight.delete(key);
+    });
+
+  accountInflight.set(key, request);
+  return request;
+}
 
 class InvalidCredentialsError extends CredentialsSignin {
   code = "invalid_credentials";
@@ -118,21 +184,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (shouldRefresh && process.env.DATABASE_URL && (token.id || email)) {
         try {
-          const dbUser = await prisma.user.findFirst({
-            where:
-              email && token.id
-                ? { OR: [{ id: String(token.id) }, { email: email.toLowerCase() }] }
-                : email
-                  ? { email: email.toLowerCase() }
-                  : { id: String(token.id) },
-            select: {
-              id: true,
-              role: true,
-              accountType: true,
-              avatarUrl: true,
-              name: true,
-            },
-          });
+          const dbUser = await loadAccountSnapshot(
+            typeof token.id === "string" ? token.id : undefined,
+            email,
+          );
           if (dbUser) {
             token.id = dbUser.id;
             token.role = dbUser.role;

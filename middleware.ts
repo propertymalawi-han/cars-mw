@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { authConfig } from "@/auth.config";
+import { isComingSoonEnabled, isComingSoonExemptPath } from "@/lib/coming-soon";
 import { safeReturnTo } from "@/lib/return-to";
 
 const { auth } = NextAuth(authConfig);
@@ -9,7 +10,31 @@ function isAdminPath(pathname: string) {
   return pathname === "/admin" || pathname.startsWith("/admin/");
 }
 
-export default auth((req) => {
+function isProtectedPath(pathname: string) {
+  return (
+    pathname === "/account" ||
+    pathname.startsWith("/account/") ||
+    pathname === "/dealer/dashboard" ||
+    pathname.startsWith("/dealer/dashboard/") ||
+    isAdminPath(pathname)
+  );
+}
+
+function isStaffRole(role?: string | null) {
+  return role === "admin" || role === "support";
+}
+
+function comingSoonRewrite(req: NextRequest) {
+  const url = req.nextUrl.clone();
+  url.pathname = "/coming-soon";
+  url.search = "";
+  const response = NextResponse.rewrite(url);
+  response.headers.set("Cache-Control", "no-store");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return response;
+}
+
+const protectRoutes = auth((req) => {
   const pathname = req.nextUrl.pathname;
   const isLoggedIn = Boolean(req.auth?.user);
 
@@ -35,13 +60,35 @@ export default auth((req) => {
   return NextResponse.redirect(signInUrl);
 });
 
+const holdPublicSite = auth((req) => {
+  if (isStaffRole(req.auth?.user?.role)) {
+    return NextResponse.next();
+  }
+  return comingSoonRewrite(req);
+});
+
+export default async function middleware(req: NextRequest, event: NextFetchEvent) {
+  const pathname = req.nextUrl.pathname;
+
+  if (pathname === "/coming-soon") {
+    const enabled = await isComingSoonEnabled();
+    if (!enabled) {
+      return NextResponse.redirect(new URL("/", req.nextUrl.origin));
+    }
+    return NextResponse.next();
+  }
+
+  if (!isComingSoonExemptPath(pathname) && (await isComingSoonEnabled())) {
+    return holdPublicSite(req, event);
+  }
+
+  if (isProtectedPath(pathname)) {
+    return protectRoutes(req, event);
+  }
+
+  return NextResponse.next();
+}
+
 export const config = {
-  matcher: [
-    "/account",
-    "/account/:path*",
-    "/dealer/dashboard",
-    "/dealer/dashboard/:path*",
-    "/admin",
-    "/admin/:path*",
-  ],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };
