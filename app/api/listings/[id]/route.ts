@@ -3,6 +3,7 @@ import { jsonError, requireApiUser } from "@/lib/api-session";
 import { listingOwnerMutationError } from "@/lib/listing-moderation";
 import { listingWriteData } from "@/lib/listing-write";
 import { prisma } from "@/lib/prisma";
+import { saveProfilePhone } from "@/lib/seller-phone";
 import { listingSchema } from "@/lib/validations/listing";
 import { revalidateListingsCache } from "@/lib/listings-cache";
 import { isStaffRole } from "@/types";
@@ -47,5 +48,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   });
 
   revalidateListingsCache();
+  await saveProfilePhone(user.id, parsed.data.phone, user.accountType);
   return NextResponse.json({ id: updated.id });
 }
