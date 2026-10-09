@@ -33,7 +33,11 @@ import {
   type ListingMakeRow,
   type MakeFacet,
 } from "@/lib/make-picker";
-import { catalogIsActive } from "@/lib/catalog-status";
+import {
+  catalogIsActive,
+  excludeMutedMakeFacets,
+  loadMutedMakeModelNames,
+} from "@/lib/catalog-status";
 import { slugify } from "@/lib/slug";
 import {
   compareVehicleMakes,
@@ -47,7 +51,11 @@ import {
   isPrivateListingPastTtl,
   privateListingFreshnessOrFilter,
 } from "@/lib/listing-expiry";
-import { DEALERS_CACHE_TAG, LISTINGS_CACHE_TAG } from "@/lib/listings-cache";
+import {
+  DEALERS_CACHE_TAG,
+  LISTINGS_CACHE_TAG,
+  VEHICLE_CATALOG_CACHE_TAG,
+} from "@/lib/listings-cache";
 import {
   activeListingWhere,
   dealerCardSelect,
@@ -639,12 +647,16 @@ export async function getVehicleMakes(): Promise<VehicleMakeOption[]> {
     .sort(compareVehicleMakes);
 }
 
-async function loadMakeCatalog() {
-  if (!usePrisma()) return [];
-  return prisma.make.findMany({
-    select: { name: true, isPopular: true, sortOrder: true },
-  });
-}
+const loadMakeCatalog = unstable_cache(
+  async () => {
+    if (!usePrisma()) return [];
+    return prisma.make.findMany({
+      select: { name: true, isPopular: true, sortOrder: true },
+    });
+  },
+  ["make-catalog"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [VEHICLE_CATALOG_CACHE_TAG] },
+);
 
 async function loadMakeModelFacets(filters: ListingFilters): Promise<MakeFacet[]> {
   if (resolvedBodyTypes(filters) === "none") return [];
@@ -652,18 +664,16 @@ async function loadMakeModelFacets(filters: ListingFilters): Promise<MakeFacet[]
   if (usePrisma()) {
     const where = listingFilterWhere(filters);
     if (!where) return [];
-    const [rows, catalog] = await Promise.all([
+    const [rows, catalog, muted] = await Promise.all([
       prisma.listing.groupBy({
         by: ["make", "model", "title"],
         where,
         _count: { _all: true },
       }),
       loadMakeCatalog(),
+      loadMutedMakeModelNames(),
     ]);
-    const { excludeMutedMakeFacets, loadMutedMakeModelNames } = await import(
-      "@/lib/catalog-status"
-    );
-    const { mutedMakes, mutedModels } = await loadMutedMakeModelNames();
+    const { mutedMakes, mutedModels } = muted;
     return excludeMutedMakeFacets(
       applyMakePopularity(
         aggregateMakeFacets(

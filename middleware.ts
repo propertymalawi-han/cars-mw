@@ -37,18 +37,19 @@ function comingSoonRewrite(req: NextRequest) {
 // The second parameter must be NextFetchEvent so NextAuth selects its middleware
 // overload. Without it, the callback is typed as an App Router handler and the
 // build rejects NextFetchEvent (it has no `params`).
-export default auth(async (req, _event: NextFetchEvent) => {
+export default auth(async (req, event: NextFetchEvent) => {
   const pathname = req.nextUrl.pathname;
+  const waitUntil = event.waitUntil?.bind(event);
 
   if (pathname === "/coming-soon") {
-    const enabled = await isComingSoonEnabled();
+    const enabled = await isComingSoonEnabled(waitUntil);
     if (!enabled) {
       return NextResponse.redirect(new URL("/", req.nextUrl.origin));
     }
     return NextResponse.next();
   }
 
-  if (!isComingSoonExemptPath(pathname) && (await isComingSoonEnabled())) {
+  if (!isComingSoonExemptPath(pathname) && (await isComingSoonEnabled(waitUntil))) {
     if (isStaffRole(req.auth?.user?.role)) {
       return NextResponse.next();
     }

@@ -127,12 +127,18 @@ export function excludeMutedMakeFacets(
     }));
 }
 
-export async function loadMutedMakeModelNames() {
-  const [makes, models] = await Promise.all([
+const loadMutedMakeRows = unstable_cache(
+  () =>
     prisma.make.findMany({
       where: { status: "muted" },
       select: { name: true, mutedUntil: true, status: true },
     }),
+  ["muted-make-rows"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [VEHICLE_CATALOG_CACHE_TAG] },
+);
+
+const loadMutedModelRows = unstable_cache(
+  () =>
     prisma.vehicleModel.findMany({
       where: { status: "muted" },
       select: {
@@ -142,7 +148,12 @@ export async function loadMutedMakeModelNames() {
         make: { select: { name: true, status: true, mutedUntil: true } },
       },
     }),
-  ]);
+  ["muted-model-rows"],
+  { revalidate: LISTING_CACHE_REVALIDATE_SECONDS, tags: [VEHICLE_CATALOG_CACHE_TAG] },
+);
+
+export async function loadMutedMakeModelNames() {
+  const [makes, models] = await Promise.all([loadMutedMakeRows(), loadMutedModelRows()]);
 
   const mutedMakes = new Set(
     makes
