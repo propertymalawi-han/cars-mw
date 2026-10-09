@@ -7,8 +7,10 @@ import { SignUpForm } from "@/components/auth/sign-up-form";
 import { EditListingSummary } from "@/components/sell/edit-listing-summary";
 import { SellForm } from "@/components/sell/sell-form";
 import { getListingById, getVehicleMakes } from "@/lib/data";
+import { variantFromTitle } from "@/lib/make-picker";
 import { prisma } from "@/lib/prisma";
 import { mapPrismaListing } from "@/lib/prisma-mappers";
+import { getSellCatalog } from "@/lib/sell-catalog";
 import { getSupabase } from "@/lib/supabase/server";
 import { getUserSuspension } from "@/lib/user-status";
 import { listingFormDefaults, type ListingFormInput } from "@/lib/validations/listing";
@@ -143,6 +145,7 @@ export default async function SellPage({ searchParams }: SellPageProps) {
         description: listing.description,
         images: listing.images,
         price: listing.price,
+        variant: variantFromTitle(listing.title, listing.make, listing.model) ?? "",
       };
     }
   }
@@ -169,7 +172,7 @@ export default async function SellPage({ searchParams }: SellPageProps) {
     }
   }
 
-  const makes = await getVehicleMakes();
+  const [makes, catalog] = await Promise.all([getVehicleMakes(), getSellCatalog()]);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
@@ -200,6 +203,7 @@ export default async function SellPage({ searchParams }: SellPageProps) {
         vehicleNumber={editingListing?.vehicleNumber}
         redirectTo={listingsHref}
         makes={makes}
+        catalog={catalog}
       />
     </div>
   );

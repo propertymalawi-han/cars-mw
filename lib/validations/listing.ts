@@ -18,6 +18,7 @@ const requiredInt = (message: string) =>
 export const vehicleStepSchema = z.object({
   make: z.string().trim().min(1, "Make is required"),
   model: z.string().trim().min(1, "Model is required"),
+  variant: z.string().trim().max(80, "Variant name is too long").optional(),
   year: requiredInt("Enter the year")
     .refine((year) => year >= 1980, "Year must be 1980 or later")
     .refine(
@@ -79,6 +80,7 @@ export const SELL_STEPS = [
     fields: [
       "make",
       "model",
+      "variant",
       "year",
       "mileage",
       "city",
@@ -124,6 +126,7 @@ export type SellStepId = (typeof SELL_STEPS)[number]["id"];
 export const listingFormDefaults: ListingFormInput = {
   make: "",
   model: "",
+  variant: "",
   year: undefined,
   mileage: undefined,
   city: "" as ListingFormInput["city"],
