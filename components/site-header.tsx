@@ -48,7 +48,7 @@ export function SiteHeader() {
           </nav>
           <div className="flex items-center gap-2.5">
             <HeaderAuth />
-            <Button className="hidden nav:inline-flex" asChild>
+            <Button className="hidden rounded-full nav:inline-flex" asChild>
               <Link href="/sell">Sell your car</Link>
             </Button>
             <SiteMobileNav />

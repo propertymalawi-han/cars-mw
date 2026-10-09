@@ -68,7 +68,7 @@ export function SiteMobileNav() {
           <Separator className="my-3" />
           <HeaderAuth compact />
           <SheetClose asChild>
-            <Button className="mt-2 h-11 w-full" asChild>
+            <Button className="mt-2 h-11 w-full rounded-full" asChild>
               <Link href="/sell">Sell your car</Link>
             </Button>
           </SheetClose>
