@@ -107,7 +107,7 @@ export function HeaderAuth({ compact = false }: { compact?: boolean }) {
     return (
       <Button
           variant="ghost"
-          className="hidden nav:inline-flex group-data-[over-hero]/header:text-white group-data-[over-hero]/header:hover:text-white/80"
+          className="hidden rounded-full nav:inline-flex group-data-[over-hero]/header:text-white group-data-[over-hero]/header:hover:text-white/80"
           asChild
         >
         <Link href="/sign-in">Sign in</Link>
