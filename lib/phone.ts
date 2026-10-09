@@ -8,6 +8,10 @@ export function whatsappHref(phone: string, message?: string) {
   return `${url}?text=${encodeURIComponent(message)}`;
 }
 
+export function whatsappShareHref(message: string) {
+  return `https://wa.me/?text=${encodeURIComponent(message)}`;
+}
+
 export function telHref(phone: string) {
   return `tel:+${digitsOnly(phone)}`;
 }

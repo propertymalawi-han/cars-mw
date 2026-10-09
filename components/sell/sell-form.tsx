@@ -48,6 +48,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { FormStepper } from "@/components/sell/form-stepper";
 import { PhotoUploader } from "@/components/sell/photo-uploader";
+import { PublishSuccess } from "@/components/sell/publish-success";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { SignUpForm } from "@/components/auth/sign-up-form";
@@ -143,6 +144,10 @@ export function SellForm({
   const [photosUploading, setPhotosUploading] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [published, setPublished] = useState(false);
+  const [publishedListing, setPublishedListing] = useState<{
+    id: string;
+    values: ListingFormValues;
+  } | null>(null);
   const [pickingOther, setPickingOther] = useState(false);
   const [fromCatalog, setFromCatalog] = useState({ bodyType: false, fuelType: false });
   const [needsAuth, setNeedsAuth] = useState(promptAuth && !signedIn);
@@ -193,6 +198,12 @@ export function SellForm({
     }, 300);
     return () => window.clearTimeout(timer);
   }, [form, listingId, published, signedIn, step, values]);
+
+  useEffect(() => {
+    if (published && !publishedListing) {
+      router.replace(redirectTo ?? "/account/listings");
+    }
+  }, [published, publishedListing, redirectTo, router]);
 
   const generatedTitle = buildListingTitle({
     year: values.year,
@@ -350,12 +361,46 @@ export function SellForm({
         return;
       }
       clearSellDraft();
+      if (!json.id) {
+        router.replace(redirectTo ?? "/account/listings");
+        return;
+      }
+      setPublishedListing({ id: json.id, values: data });
       setPublished(true);
-      router.replace(redirectTo ?? "/account/listings");
     } catch {
       publishLock.current = false;
       setPublishError("Could not publish the listing.");
     }
+  }
+
+  function listAnother() {
+    clearSellDraft();
+    publishLock.current = false;
+    form.reset({
+      ...listingFormDefaults,
+      sellerName: form.getValues("sellerName"),
+      sellerEmail: form.getValues("sellerEmail"),
+      phone: form.getValues("phone"),
+    });
+    setPublished(false);
+    setPublishedListing(null);
+    setStep("vehicle");
+    setHighest(signedIn ? "vehicle" : "price");
+    setPickingOther(false);
+    setFromCatalog({ bodyType: false, fuelType: false });
+    setPublishError(null);
+  }
+
+  if (publishedListing) {
+    return (
+      <PublishSuccess
+        listingId={publishedListing.id}
+        values={publishedListing.values}
+        listingsHref={redirectTo ?? "/account/listings"}
+        updated={Boolean(listingId)}
+        onListAnother={listAnother}
+      />
+    );
   }
 
   if (!signedIn && needsAuth) {
