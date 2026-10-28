@@ -6,7 +6,7 @@ function prismaDatasourceUrl() {
   const raw = process.env.DATABASE_URL?.trim();
   if (!raw) {
     throw new Error(
-      "DATABASE_URL is not set. Add the Supabase Postgres connection string from .env.example.",
+      "DATABASE_URL is not set. Add the Supabase Postgres connection string to .env.",
     );
   }
 

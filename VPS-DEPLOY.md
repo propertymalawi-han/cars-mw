@@ -49,7 +49,7 @@ cd /var/www/cars-mw
 npm install
 ```
 
-Copy `.env.example` to `.env` and fill it in. On the VPS, set `AUTH_URL` to the public site URL (`https://your-domain`), not `http://localhost:3000`. `DATABASE_URL` is the Supabase pooler on port 6543. `DIRECT_URL` is the session connection on port 5432, and Prisma Migrate needs it.
+Create `.env` on the server and fill it in. On the VPS, set `AUTH_URL` to the public site URL (`https://your-domain`), not `http://localhost:3000`. `DATABASE_URL` is the Supabase pooler on port 6543. `DIRECT_URL` is the session connection on port 5432, and Prisma Migrate needs it.
 
 ```bash
 npx prisma migrate deploy
